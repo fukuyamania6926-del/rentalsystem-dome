@@ -1,0 +1,2164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>車両貸渡管理システム</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;font-size:14px;color:#222;background:#f5f5f3}
+.app{max-width:980px;margin:0 auto;padding:1.5rem}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.25rem}
+.header h1{font-size:19px;font-weight:700}
+.header p{font-size:11px;color:#888;margin-top:3px}
+.btn{padding:7px 14px;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:500;border:1px solid #d0d0d0;background:#fff;color:#333}
+.btn:hover{background:#f0f0f0}
+.btn-primary{background:#1a56db;color:#fff;border-color:#1a56db}
+.btn-primary:hover{background:#1a46c0}
+.btn-green{background:#16a34a;color:#fff;border-color:#16a34a}
+.btn-green:hover{background:#15803d}
+.btn-sm{padding:4px 10px;font-size:12px}
+.tabs{display:flex;border-bottom:1px solid #ddd;margin-bottom:1.5rem}
+.tab{padding:9px 16px;cursor:pointer;border:none;background:transparent;font-size:13px;color:#666;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit}
+.tab.active{color:#1a56db;border-bottom-color:#1a56db;font-weight:600}
+.tab:hover:not(.active){color:#333;background:#f8f8f8}
+.section{display:none}.section.active{display:block}
+.card{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1rem}
+.card-title{font-size:11px;font-weight:700;color:#555;margin-bottom:1rem;text-transform:uppercase;letter-spacing:.5px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.field label{font-size:12px;color:#555;font-weight:500}
+.field input,.field select,.field textarea{border:1px solid #d0d0d0;border-radius:6px;padding:7px 10px;font-size:13px;background:#fff;color:#222;font-family:inherit}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:#1a56db;box-shadow:0 0 0 2px rgba(26,86,219,.1)}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.badge-rental{background:#dbeafe;color:#1e40af}
+.badge-loaner{background:#dcfce7;color:#166534}
+.badge-out{background:#fef3c7;color:#92400e}
+.badge-in{background:#dcfce7;color:#166534}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1rem}
+.stat{background:#f8f9fa;border:1px solid #e0e0e0;border-radius:8px;padding:14px 12px;text-align:center}
+.stat-num{font-size:22px;font-weight:700;line-height:1.1;color:#1a56db}
+.stat-label{font-size:11px;color:#888;margin-top:3px}
+.section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+.section-header h2{font-size:15px;font-weight:600}
+.filter-bar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center}
+.filter-bar select,.filter-bar input{padding:6px 10px;border:1px solid #d0d0d0;border-radius:6px;font-size:13px;background:#fff;font-family:inherit}
+.divider{height:1px;background:#eee;margin:.75rem 0}
+.flex{display:flex;gap:8px;align-items:center}
+.mt{margin-top:1rem}
+.summary-block{background:#f8f9fa;border:1px solid #e0e0e0;border-radius:8px;padding:1rem;margin-bottom:1rem}
+.summary-title{font-size:13px;font-weight:600;margin-bottom:.75rem;display:flex;align-items:center;gap:6px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.dot-rental{background:#1a56db}
+.dot-loaner{background:#16a34a}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;font-size:11px;color:#555;border-bottom:1px solid #e0e0e0;font-weight:600;background:#fafafa;white-space:nowrap}
+td{padding:7px 10px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+.empty{text-align:center;color:#999;padding:2rem;font-size:13px}
+.vehicle-status{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0}
+.vehicle-status:last-child{border-bottom:none}
+.section-label{font-size:12px;font-weight:600;color:#444;margin-bottom:6px;padding:4px 0;border-bottom:1px solid #e8e8e8}
+.req{color:#e53e3e;font-size:11px;margin-left:2px}
+
+/* ===== 利用案内 / 請求書 印刷スタイル ===== */
+@media print{
+  body{background:#fff;font-size:11px;color:#000}
+  .no-print,.tabs,.filter-bar,.btn{display:none!important}
+  .header{display:none!important}
+  .app{padding:0;max-width:100%}
+  .annai-wrap{page-break-after:always;border:none!important}
+  .print-only{display:block!important}
+  .print-hide{display:none!important}
+}
+.print-only{display:none}
+/* 印刷モード制御 */
+body.print-annai-only   .invoice-wrap{display:none!important}
+body.print-invoice-only .annai-wrap-doc{display:none!important}
+@media print{
+  #monthly-print-overlay{position:static!important;background:none!important;overflow:visible!important}
+  #monthly-print-overlay > div{box-shadow:none!important;margin:0!important;padding:0!important;border-radius:0!important}
+  .mp-summary{break-inside:avoid}
+}
+
+/* 利用案内レイアウト */
+.annai-wrap{background:#fff;border:1px solid #ccc;border-radius:4px;padding:28px 32px;margin-bottom:1rem;font-size:13px;line-height:1.7}
+.annai-title{text-align:center;font-size:24px;font-weight:400;letter-spacing:4px;margin-bottom:20px;padding-bottom:0}
+.annai-header{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:16px}
+.annai-from{font-size:13px}
+.annai-from .company{font-size:15px;font-weight:700;line-height:1.5}
+.annai-from .tant{font-size:14px;font-weight:700}
+.annai-to{text-align:right;font-size:12px}
+.annai-to .shop-name{font-size:18px;font-weight:700;font-family:Arial,sans-serif;margin-bottom:4px}
+.annai-table{width:100%;border-collapse:collapse;margin-bottom:12px}
+.annai-table td,.annai-table th{padding:6px 10px;border-bottom:1px solid #ccc;vertical-align:top;font-size:13px}
+.annai-table .lbl{font-weight:700;width:130px;white-space:nowrap}
+.annai-box{border:1px solid #999;margin-bottom:12px}
+.annai-box-row{display:grid;grid-template-columns:130px 1fr;border-bottom:1px solid #ccc}
+.annai-box-row:last-child{border-bottom:none}
+.annai-box-lbl{padding:7px 10px;font-weight:700;font-size:13px;background:#f8f8f8;border-right:1px solid #ccc}
+.annai-box-val{padding:7px 12px;font-size:13px}
+.annai-biko{margin-top:4px}
+.annai-biko-lbl{font-weight:700;font-size:13px;margin-bottom:4px}
+.annai-biko-box{border:1px solid #999;min-height:60px;padding:8px;font-size:13px}
+.annai-date{text-align:right;font-size:12px;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="header">
+  <div>
+    <h1>🚗 車両貸渡管理システム</h1>
+    <p>国土交通省 貸渡実績報告対応 ／ レンタカー5台・代車7台 ／ 保険会社事故代車対応</p>
+    <p id="save-status" style="font-size:11px;color:#7c3aed;margin-top:2px"></p>
+  </div>
+  <div class="flex no-print" style="flex-wrap:wrap;gap:6px">
+    <button class="btn" onclick="window.print()">🖨 印刷・PDF</button>
+    <button class="btn btn-green" onclick="showTab('new-accident')">🚨 事故代車登録</button>
+    <button class="btn btn-primary" onclick="showTab('new-rental')">＋ 通常貸出</button>
+    <button class="btn" onclick="saveToFirebase()" style="background:#7c3aed;color:#fff;border-color:#7c3aed">☁️ クラウド保存</button>
+    <button class="btn" onclick="loadFromFirebase()" style="background:#0891b2;color:#fff;border-color:#0891b2">📂 クラウド読込</button>
+    <button class="btn" onclick="saveAllData()" style="background:#6b7280;color:#fff;border-color:#6b7280">💾 ローカル保存</button>
+  </div>
+</div>
+
+<div class="tabs no-print">
+  <button class="tab active" onclick="showTab('dashboard')" id="tab-dashboard">ダッシュボード</button>
+  <button class="tab" onclick="showTab('new-accident')" id="tab-new-accident">事故代車入力</button>
+  <button class="tab" onclick="showTab('new-rental')" id="tab-new-rental">通常貸出入力</button>
+  <button class="tab" onclick="showTab('records')" id="tab-records">貸渡一覧</button>
+  <button class="tab" onclick="showTab('vehicles')" id="tab-vehicles">車両管理</button>
+  <button class="tab" onclick="showTab('report')" id="tab-report">年次報告</button>
+  <button class="tab" onclick="showTab('customers')" id="tab-customers">👤 顧客管理</button>
+  <button class="tab" onclick="showTab('export')" id="tab-export">📋 国交省転記データ</button>
+</div>
+
+<!-- ダッシュボード -->
+<div id="section-dashboard" class="section active">
+  <div class="stat-grid" id="stats-grid"></div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title"><span class="dot dot-rental" style="display:inline-block;margin-right:4px"></span>レンタカー（5台）</div>
+      <div id="rental-status-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-loaner" style="display:inline-block;margin-right:4px"></span>代車（7台）</div>
+      <div id="loaner-status-list"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">直近の貸渡実績</div>
+    <table>
+      <thead><tr><th>貸出日</th><th>車両</th><th>区分</th><th>利用者</th><th>保険会社</th><th>返却日</th><th>料金</th><th>状態</th><th class="no-print"></th></tr></thead>
+      <tbody id="recent-table"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 事故代車入力 -->
+<div id="section-new-accident" class="section">
+  <div class="card">
+    <div class="card-title" style="color:#b91c1c">🚨 事故代車 貸渡入力</div>
+
+    <div class="section-label">■ 保険・仲介情報</div>
+    <div class="grid3">
+      <div class="field"><label>保険会社名<span class="req">*</span></label><input type="text" id="a-insurer" placeholder="損害保険ジャパン株式会社"></div>
+      <div class="field"><label>部署・課</label><input type="text" id="a-dept" placeholder="福岡保険金サービス第二課"></div>
+      <div class="field"><label>担当者名<span class="req">*</span></label><input type="text" id="a-tanto" placeholder="藤井 様"></div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label>保険会社TEL</label><input type="tel" id="a-ins-tel" placeholder="050-3798-1905"></div>
+      <div class="field"><label>保険会社FAX</label><input type="text" id="a-ins-fax" placeholder="042-420-2944"></div>
+      <div class="field"><label>案件番号<span class="req">*</span></label><input type="text" id="a-case-no" placeholder="725360577-1000"></div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label">■ 事故情報</div>
+    <div class="grid3">
+      <div class="field"><label>事故・故障日<span class="req">*</span></label><input type="date" id="a-acc-date"></div>
+      <div class="field"><label>保険契約者名<span class="req">*</span></label><input type="text" id="a-contractor" placeholder="本松 新一 様"></div>
+      <div class="field"><label>証券番号</label><input type="text" id="a-policy-no" placeholder="****"></div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label>事故車 車名</label><input type="text" id="a-acc-car" placeholder="WR-V"></div>
+      <div class="field"><label>事故車 登録番号</label><input type="text" id="a-acc-plate" placeholder="筑豊333と5115"></div>
+      <div class="field"><label>事故車 車体番号</label><input type="text" id="a-acc-frame" placeholder="****"></div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label">■ レンタカー利用者情報</div>
+    <div class="grid3">
+      <div class="field"><label>利用者氏名<span class="req">*</span></label>
+          <div style="display:flex;gap:6px">
+            <input type="text" id="a-user-name" placeholder="田方 奏 様" oninput="filterCustomerSuggest('a')" style="flex:1" autocomplete="off">
+            <select id="a-customer-select" onchange="applyCustomer('a')" style="max-width:180px">
+              <option value="">── 顧客から選択 ──</option>
+            </select>
+          </div></div>
+      <div class="field"><label>利用者連絡先</label><input type="tel" id="a-user-tel" placeholder="090-0000-0000"></div>
+      <div class="field"><label>利用者住所</label><input type="text" id="a-user-addr" placeholder="福岡県…"></div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label">■ 貸出車両・料金</div>
+    <div class="grid3">
+      <div class="field"><label>車両<span class="req">*</span></label><select id="a-vehicle"></select></div>
+      <div class="field"><label>利用開始日時<span class="req">*</span></label><input type="datetime-local" id="a-out-date"></div>
+      <div class="field"><label>返却予定日時</label><input type="datetime-local" id="a-in-date"></div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label>日額（円・税込）</label><input type="number" id="a-day-fee" placeholder="5000"></div>
+      <div class="field"><label>出発時走行距離（km）</label><input type="number" id="a-km-out" placeholder="12500"></div>
+      <div class="field"><label>備考</label><input type="text" id="a-note" placeholder=""></div>
+    </div>
+
+    <div class="flex mt">
+      <button class="btn btn-green" onclick="saveAccident()">✔ 登録して利用案内・貸渡票を発行</button>
+      <button class="btn" onclick="clearAccForm()">クリア</button>
+    </div>
+  </div>
+</div>
+
+<!-- 通常貸出入力 -->
+<div id="section-new-rental" class="section">
+  <div class="card">
+    <div class="card-title">通常レンタカー 貸渡入力</div>
+    <div class="grid2">
+      <div class="field"><label>車両区分</label>
+        <select id="f-type" onchange="updateRentalVehicleList()">
+          <option value="rental">レンタカー</option>
+          <option value="loaner">代車</option>
+        </select>
+      </div>
+      <div class="field"><label>車両<span class="req">*</span></label><select id="f-vehicle"></select></div>
+    </div>
+    <div class="divider"></div>
+    <p class="section-label">■ 利用者情報</p>
+    <div class="grid2">
+      <div class="field"><label>氏名<span class="req">*</span></label>
+          <div style="display:flex;gap:6px">
+            <input type="text" id="f-name" placeholder="山田 太郎" oninput="filterCustomerSuggest('f')" style="flex:1" autocomplete="off">
+            <select id="f-customer-select" onchange="applyCustomer('f')" style="max-width:180px">
+              <option value="">── 顧客から選択 ──</option>
+            </select>
+          </div></div>
+      <div class="field"><label>電話番号<span class="req">*</span></label><input type="tel" id="f-phone" placeholder="090-0000-0000"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>住所</label><input type="text" id="f-address" placeholder="福岡県北九州市…"></div>
+      <div class="field"><label>運転免許証番号</label><input type="text" id="f-license" placeholder="12345678901234"></div>
+    </div>
+    <div class="divider"></div>
+    <p class="section-label">■ 貸出情報</p>
+    <div class="grid3">
+      <div class="field"><label>貸出日時<span class="req">*</span></label><input type="datetime-local" id="f-out-date"></div>
+      <div class="field"><label>返却予定日時</label><input type="datetime-local" id="f-in-date"></div>
+      <div class="field"><label>出発時走行距離（km）</label><input type="number" id="f-km-out" placeholder="12500"></div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label>料金（円）</label><input type="number" id="f-fee" placeholder="5000"></div>
+      <div class="field"><label>目的（代車の場合）</label><input type="text" id="f-purpose" placeholder="整備代車"></div>
+      <div class="field"><label>備考</label><input type="text" id="f-note" placeholder=""></div>
+    </div>
+    <div class="flex mt">
+      <button class="btn btn-primary" onclick="saveRental()">✔ 貸渡証を発行・保存</button>
+      <button class="btn" onclick="clearRentalForm()">クリア</button>
+    </div>
+  </div>
+</div>
+
+<!-- 貸渡一覧 -->
+<div id="section-records" class="section">
+  <div class="section-header">
+    <h2>貸渡実績一覧</h2>
+    <div class="flex">
+      <button class="btn btn-sm no-print" onclick="printMonthly()">🖨 月別印刷</button>
+      <button class="btn btn-sm no-print" onclick="exportCSV()">⬇ CSV出力</button>
+    </div>
+  </div>
+  <div class="filter-bar no-print">
+    <select id="filter-type" onchange="renderRecords()">
+      <option value="all">すべての区分</option>
+      <option value="accident">事故代車</option>
+      <option value="rental">レンタカー</option>
+      <option value="loaner">代車</option>
+    </select>
+    <select id="filter-month" onchange="renderRecords()">
+      <option value="all">すべての月</option>
+    </select>
+    <select id="filter-status" onchange="renderRecords()">
+      <option value="all">すべての状態</option>
+      <option value="out">貸出中</option>
+      <option value="returned">返却済</option>
+    </select>
+    <input type="text" id="filter-name" placeholder="利用者名・保険会社で検索" oninput="renderRecords()" style="flex:1;min-width:150px">
+  </div>
+  <div class="card" style="padding:0;overflow-x:auto">
+    <table>
+      <thead><tr><th>貸出日時</th><th>車両</th><th>区分</th><th>利用者</th><th>保険会社</th><th>案件番号</th><th>走行距離</th><th>料金</th><th>返却日時</th><th>状態</th><th class="no-print">操作</th></tr></thead>
+      <tbody id="records-table"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 車両管理 -->
+<div id="section-vehicles" class="section">
+
+  <!-- 新規登録フォーム -->
+  <div class="card" style="border-color:#1a56db">
+    <div class="card-title" style="color:#1e40af">＋ 車両新規登録</div>
+    <div class="grid3">
+      <div class="field">
+        <label>車両区分<span class="req">*</span></label>
+        <select id="v-type">
+          <option value="rental">レンタカー</option>
+          <option value="loaner">代車</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>車種区分<span class="req">*</span></label>
+        <select id="v-ktype">
+          <option value="kei">軽自動車</option>
+          <option value="normal">普通車</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>車種・車名<span class="req">*</span></label>
+        <input type="text" id="v-model" placeholder="スズキ スペーシアカスタム">
+      </div>
+      <div class="field">
+        <label>登録番号（ナンバー）<span class="req">*</span></label>
+        <input type="text" id="v-plate" placeholder="筑豊580わ2562">
+      </div>
+    </div>
+    <div class="grid3">
+      <div class="field">
+        <label>年式</label>
+        <input type="text" id="v-year" placeholder="R6">
+      </div>
+      <div class="field">
+        <label>車台番号</label>
+        <input type="text" id="v-frame" placeholder="MK94S-118699">
+      </div>
+      <div class="field">
+        <label>備考</label>
+        <input type="text" id="v-note" placeholder="軽自動車・ハイブリッド 等">
+      </div>
+    </div>
+    <div class="flex mt">
+      <button class="btn btn-primary" onclick="addVehicle()">＋ 登録する</button>
+      <button class="btn" onclick="clearVehicleForm()">クリア</button>
+    </div>
+  </div>
+
+  <!-- レンタカー一覧 -->
+  <div class="card">
+    <div class="card-title">
+      <span class="dot dot-rental" style="display:inline-block;margin-right:4px"></span>
+      レンタカー <span id="rental-count-badge" style="font-weight:700;color:#1a56db"></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>登録番号</th><th>車種</th><th>車種区分</th><th>年式</th><th>車台番号</th><th>備考</th><th>状態</th><th class="no-print">操作</th></tr></thead>
+        <tbody id="vehicle-rental-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 代車一覧 -->
+  <div class="card">
+    <div class="card-title">
+      <span class="dot dot-loaner" style="display:inline-block;margin-right:4px"></span>
+      代車 <span id="loaner-count-badge" style="font-weight:700;color:#16a34a"></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>登録番号</th><th>車種</th><th>車種区分</th><th>年式</th><th>車台番号</th><th>備考</th><th>状態</th><th class="no-print">操作</th></tr></thead>
+        <tbody id="vehicle-loaner-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- 年次報告 -->
+<div id="section-report" class="section">
+  <div class="section-header">
+    <h2>貸渡実績報告（国土交通省届出用）</h2>
+    <div class="flex no-print">
+      <select id="report-year" onchange="renderReport()">
+        <option value="2026">2026年</option>
+        <option value="2025">2025年</option>
+      </select>
+      <button class="btn" onclick="window.print()">🖨 印刷</button>
+    </div>
+  </div>
+  <div id="report-year-label" style="font-size:13px;color:#555;margin-bottom:1rem"></div>
+  <div class="summary-block">
+    <div class="summary-title"><span class="dot dot-rental"></span>レンタカー年間実績（事故代車含む）</div>
+    <div class="stat-grid" id="report-rental-stats" style="margin-bottom:0"></div>
+  </div>
+  <div class="summary-block">
+    <div class="summary-title"><span class="dot dot-loaner"></span>代車年間実績</div>
+    <div class="stat-grid" id="report-loaner-stats" style="margin-bottom:0"></div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden;margin-top:1rem">
+    <table>
+      <thead><tr>
+        <th>月</th>
+        <th>レンタカー件数</th><th>うち軽</th><th>うち普通</th><th>うち事故代車</th><th>レンタカー売上</th><th>走行距離</th>
+        <th>代車件数</th><th>うち軽</th><th>うち普通</th><th>走行距離</th>
+      </tr></thead>
+      <tbody id="report-table"></tbody>
+      <tfoot id="report-foot"></tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- 利用案内プレビュー（印刷時表示） -->
+<div id="section-annai" class="section">
+  <div class="section-header no-print">
+    <h2 id="annai-section-title">ご利用案内 / 請求書 プレビュー</h2>
+    <div class="flex">
+      <button class="btn btn-primary" onclick="window.print()">🖨 印刷・PDF保存</button>
+      <button class="btn" onclick="showTab('records')">← 一覧に戻る</button>
+    </div>
+  </div>
+  <!-- 印刷切替タブ -->
+  <div class="no-print" style="display:flex;gap:8px;margin-bottom:1rem">
+    <button class="btn" id="print-mode-both"   onclick="setPrintMode('both')"   style="background:#1a56db;color:#fff;border-color:#1a56db">利用案内＋請求書（両方）</button>
+    <button class="btn" id="print-mode-annai"  onclick="setPrintMode('annai')" >利用案内のみ</button>
+    <button class="btn" id="print-mode-invoice" onclick="setPrintMode('invoice')">請求書のみ</button>
+  </div>
+  <div id="annai-content"></div>
+</div>
+
+
+<!-- 顧客管理 -->
+<div id="section-customers" class="section">
+  <div class="section-header">
+    <h2>顧客管理</h2>
+    <div class="flex no-print">
+      <button class="btn btn-primary" onclick="showTab('new-accident')">＋ 新規貸出へ</button>
+    </div>
+  </div>
+
+  <!-- 検索バー -->
+  <div class="filter-bar no-print">
+    <input type="text" id="cust-search" placeholder="氏名・電話番号で検索" oninput="renderCustomers()" style="flex:1;min-width:200px">
+    <button class="btn btn-sm" onclick="document.getElementById('cust-search').value='';renderCustomers()">クリア</button>
+  </div>
+
+  <!-- 手動登録フォーム -->
+  <div class="card" style="border-color:#6366f1">
+    <div class="card-title" style="color:#4338ca">＋ 顧客手動登録 / 編集</div>
+    <div class="grid3">
+      <div class="field"><label>氏名<span class="req">*</span></label><input type="text" id="c-name" placeholder="山田 太郎" autocomplete="name"></div>
+      <div class="field"><label>フリガナ</label><input type="text" id="c-kana" placeholder="ヤマダ タロウ" oninput="toKatakana(this)"></div>
+      <div class="field"><label>電話番号</label><input type="tel" id="c-phone" placeholder="090-0000-0000"></div>
+    </div>
+    <div class="grid3">
+      <div class="field">
+        <label>郵便番号</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="text" id="c-zip" placeholder="820-0001" maxlength="8" style="flex:1" oninput="handleZipInput('c')">
+          <button class="btn btn-sm" onclick="lookupZip('c')" style="white-space:nowrap">住所検索</button>
+        </div>
+      </div>
+      <div class="field"><label>住所</label><input type="text" id="c-addr" placeholder="福岡県嘉麻市…"></div>
+      <div class="field"><label>番地・建物名</label><input type="text" id="c-addr2" placeholder="山野631-5"></div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label>免許証番号</label><input type="text" id="c-license" placeholder="12345678901234"></div>
+      <div class="field"><label>メモ</label><input type="text" id="c-memo" placeholder="常連・保険会社 等"></div>
+      <div class="field" style="justify-content:flex-end">
+        <label>&nbsp;</label>
+        <div class="flex">
+          <button class="btn btn-primary" id="c-save-btn" onclick="saveCustomer()">＋ 登録</button>
+          <button class="btn" onclick="clearCustomerForm()">クリア</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 顧客一覧 -->
+  <div class="card" style="padding:0;overflow-x:auto">
+    <table>
+      <thead><tr><th>氏名</th><th>フリガナ</th><th>電話番号</th><th>郵便番号</th><th>住所</th><th>免許証番号</th><th>メモ</th><th>貸出回数</th><th class="no-print">操作</th></tr></thead>
+      <tbody id="customers-table"></tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- 国交省転記データ -->
+<div id="section-export" class="section">
+  <div class="section-header">
+    <h2>国交省 貸渡実績報告書 転記データ</h2>
+    <div class="flex no-print">
+      <select id="export-year" onchange="renderExport()">
+        <option value="2026">令和8年度（2026）</option>
+        <option value="2025">令和7年度（2025）</option>
+      </select>
+      <button class="btn" onclick="window.print()">🖨 印刷</button>
+    </div>
+  </div>
+
+  <div class="card" style="background:#fffbeb;border-color:#f59e0b">
+    <div style="font-size:13px;color:#78350f;font-weight:600;margin-bottom:6px">📌 転記手順</div>
+    <div style="font-size:12px;color:#78350f;line-height:1.8">
+      ① 下の集計値をExcelの【様式1】貸渡実績報告書 の該当欄に転記してください<br>
+      ② 「乗用車」行に入力 ／「うち軽自動車」行にも同じ値を入力（全台数が軽自動車の場合）<br>
+      ③ 車両数は「6月30日・9月30日・12月31日・3月31日現在」の各時点の台数を別途確認して入力してください
+    </div>
+  </div>
+
+  <!-- 様式1 転記用 -->
+  <div class="card">
+    <div class="card-title" style="font-size:13px;color:#1e40af;font-weight:700">【様式1】貸渡実績報告書 ＞ 乗用車 行</div>
+    <div id="export-table-wrap"></div>
+  </div>
+
+  <!-- 様式2 車両数用 -->
+  <div class="card" style="margin-top:0">
+    <div class="card-title" style="font-size:13px;color:#166534;font-weight:700">【様式2】事務所別車種別配置車両数一覧 ＞ 保有車両数（乗用）</div>
+    <div style="font-size:12px;color:#555;margin-bottom:12px">各時点の実際の保有台数を確認して入力してください（管理システムの現在台数を参考表示）</div>
+    <div class="grid4" id="vehicle-count-grid"></div>
+  </div>
+
+  <!-- 月別明細 -->
+  <div class="card" style="margin-top:0">
+    <div class="card-title" style="font-size:13px;font-weight:700">月別明細（確認用）</div>
+    <div class="card" style="padding:0;overflow-x:auto;margin-bottom:0">
+      <table>
+        <thead>
+          <tr>
+            <th>月</th>
+            <th>貸渡回数</th>
+            <th>貸渡日車数</th>
+            <th>走行キロ</th>
+            <th>貸渡料金</th>
+            <th>件数詳細</th>
+          </tr>
+        </thead>
+        <tbody id="export-monthly-table"></tbody>
+        <tfoot id="export-monthly-foot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- 全件リスト -->
+  <div class="card" style="margin-top:0">
+    <div class="card-title" style="font-size:13px;font-weight:700">全貸渡明細（レンタカー・事故代車のみ）</div>
+    <div style="font-size:12px;color:#888;margin-bottom:8px">※代車（整備）は含まれません</div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>貸出日</th>
+            <th>返却日</th>
+            <th>貸渡日車数</th>
+            <th>車両</th>
+            <th>登録番号</th>
+            <th>利用者</th>
+            <th>走行距離(km)</th>
+            <th>料金(円)</th>
+            <th>区分</th>
+          </tr>
+        </thead>
+        <tbody id="export-detail-table"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 月別印刷プレビュー -->
+<div id="monthly-print-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;overflow:auto">
+  <div style="background:#fff;max-width:900px;margin:2rem auto;border-radius:10px;padding:1.5rem">
+    <div class="no-print" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <h2 style="font-size:16px;font-weight:600" id="monthly-print-title">月別貸渡一覧</h2>
+      <div class="flex">
+        <select id="mp-year" onchange="renderMonthlyPrint()" style="padding:6px 10px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px"></select>
+        <select id="mp-month" onchange="renderMonthlyPrint()" style="padding:6px 10px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px"></select>
+        <select id="mp-type" onchange="renderMonthlyPrint()" style="padding:6px 10px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px">
+          <option value="all">すべての区分</option>
+          <option value="accident">事故代車</option>
+          <option value="rental">レンタカー</option>
+          <option value="loaner">代車</option>
+        </select>
+        <button class="btn btn-primary" onclick="window.print()">🖨 印刷・PDF</button>
+        <button class="btn" onclick="closeMonthlyPrint()">✕ 閉じる</button>
+      </div>
+    </div>
+    <div id="monthly-print-content"></div>
+  </div>
+</div>
+
+<!-- 貸渡編集モーダル -->
+<div id="record-edit-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9998;overflow:auto">
+  <div style="background:#fff;max-width:780px;margin:2rem auto;border-radius:10px;padding:1.5rem;box-shadow:0 4px 24px rgba(0,0,0,0.2)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+      <h2 style="font-size:16px;font-weight:600">✏️ 貸渡情報 編集</h2>
+      <button class="btn" onclick="closeEditRecord()">✕ 閉じる</button>
+    </div>
+
+    <div class="section-label">■ 区分・車両</div>
+    <div class="grid3" style="margin-bottom:10px">
+      <div class="field"><label>区分</label>
+        <select id="er-type" onchange="updateErVehicles()">
+          <option value="accident">事故代車</option>
+          <option value="rental">レンタカー</option>
+          <option value="loaner">代車</option>
+        </select>
+      </div>
+      <div class="field"><label>車両</label>
+        <select id="er-vehicle"></select>
+      </div>
+      <div class="field"><label>状態</label>
+        <select id="er-status">
+          <option value="out">貸出中</option>
+          <option value="returned">返却済</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section-label">■ 保険・事故情報（事故代車のみ）</div>
+    <div class="grid3" style="margin-bottom:10px">
+      <div class="field"><label>保険会社</label><input type="text" id="er-insurer"></div>
+      <div class="field"><label>部署</label><input type="text" id="er-dept"></div>
+      <div class="field"><label>担当者</label><input type="text" id="er-tanto"></div>
+    </div>
+    <div class="grid3" style="margin-bottom:10px">
+      <div class="field"><label>保険会社TEL</label><input type="tel" id="er-ins-tel"></div>
+      <div class="field"><label>保険会社FAX</label><input type="text" id="er-ins-fax"></div>
+      <div class="field"><label>案件番号</label><input type="text" id="er-case-no"></div>
+    </div>
+    <div class="grid3" style="margin-bottom:10px">
+      <div class="field"><label>事故日</label><input type="date" id="er-acc-date"></div>
+      <div class="field"><label>保険契約者</label><input type="text" id="er-contractor"></div>
+      <div class="field"><label>証券番号</label><input type="text" id="er-policy-no"></div>
+    </div>
+    <div class="grid3" style="margin-bottom:10px">
+      <div class="field"><label>事故車 車名</label><input type="text" id="er-acc-car"></div>
+      <div class="field"><label>事故車 登録番号</label><input type="text" id="er-acc-plate"></div>
+      <div class="field"><label>事故車 車体番号</label><input type="text" id="er-acc-frame"></div>
+    </div>
+
+    <div class="section-label">■ 利用者情報</div>
+    <div class="grid3" style="margin-bottom:10px">
+      <div class="field"><label>利用者氏名</label><input type="text" id="er-name"></div>
+      <div class="field"><label>電話番号</label><input type="tel" id="er-phone"></div>
+      <div class="field"><label>住所</label><input type="text" id="er-address"></div>
+    </div>
+
+    <div class="section-label">■ 貸出・返却情報</div>
+    <div class="grid3" style="margin-bottom:10px">
+      <div class="field"><label>貸出日時</label><input type="datetime-local" id="er-out-date"></div>
+      <div class="field"><label>返却予定日時</label><input type="datetime-local" id="er-in-date"></div>
+      <div class="field"><label>返却日時</label><input type="datetime-local" id="er-return-date"></div>
+    </div>
+    <div class="grid3" style="margin-bottom:10px">
+      <div class="field"><label>出発時走行距離（km）</label><input type="number" id="er-km-out"></div>
+      <div class="field"><label>返却時走行距離（km）</label><input type="number" id="er-km-in"></div>
+      <div class="field"><label>備考</label><input type="text" id="er-note"></div>
+    </div>
+
+    <div class="section-label">■ 料金</div>
+    <div class="grid3" style="margin-bottom:1rem">
+      <div class="field"><label>日額（円・事故代車）</label><input type="number" id="er-day-fee"></div>
+      <div class="field"><label>料金（円・通常）</label><input type="number" id="er-fee"></div>
+    </div>
+
+    <div class="flex">
+      <button class="btn btn-primary" onclick="saveEditRecord()">✔ 保存する</button>
+      <button class="btn" style="color:#dc2626;border-color:#dc2626" onclick="deleteRecord()">🗑 この貸渡を削除</button>
+      <button class="btn" onclick="closeEditRecord()">キャンセル</button>
+    </div>
+  </div>
+</div>
+</div><!-- /app -->
+
+<script>
+var SHOP = {
+  name: 'CarstudioDome',
+  tanto: '大道百合',
+  addr: '福岡県嘉麻市山野631-5',
+  tel: '0948-80-4181',
+  fax: '0948-80-4180',
+  bank: '○○銀行 ○○支店 普通 0000000\n口座名義：カースタジオドーム'
+};
+
+var vehicles = {
+  rental: [],
+  loaner: []
+};
+var nextId = 1;
+var records = [];
+var customers = [];
+var custNextId = 1;
+var custEditId = null;
+
+function getVehicle(type,id){
+  var arr = type==='accident' ? vehicles.rental : vehicles[type];
+  if(!arr) return null;
+  return arr.find(function(v){return v.id===id;});
+}
+function getAllVehicles(){
+  return vehicles.rental.concat(vehicles.loaner);
+}
+function isOut(vehicleId){
+  return records.some(function(r){return r.vehicleId===vehicleId&&r.status==='out';});
+}
+function isSold(vehicleId){
+  var v = getAllVehicles().find(function(x){return x.id===vehicleId;});
+  return v && v.sold;
+}
+function showTab(tab){
+  document.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  document.getElementById('section-'+tab).classList.add('active');
+  var tabEl=document.getElementById('tab-'+tab);
+  if(tabEl) tabEl.classList.add('active');
+  if(tab==='dashboard') renderDashboard();
+  if(tab==='records') renderRecords();
+  if(tab==='vehicles') renderVehicles();
+  if(tab==='report') renderReport();
+  if(tab==='new-accident'){buildAccVehicleList();setAccDates();}
+  if(tab==='export') renderExport();
+  if(tab==='customers'){renderCustomers();rebuildCustomerSelects();setupNameInput();}
+  if(tab==='new-rental'){updateRentalVehicleList();setRentalDates();}
+}
+
+function renderDashboard(){
+  var rentalOut=records.filter(function(r){return (r.type==='rental'||r.type==='accident')&&r.status==='out';}).length;
+  var loanerOut=records.filter(function(r){return r.type==='loaner'&&r.status==='out';}).length;
+  var accidentOut=records.filter(function(r){return r.type==='accident'&&r.status==='out';}).length;
+  var rentalActive=vehicles.rental.filter(function(v){return !v.sold;}).length;
+  var loanerActive=vehicles.loaner.filter(function(v){return !v.sold;}).length;
+  var now=new Date();
+  var thisMonth=records.filter(function(r){var d=new Date(r.outDate);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).length;
+  var totalSales=records.filter(function(r){return r.status==='returned';}).reduce(function(s,r){return s+calcFee(r);},0);
+  document.getElementById('stats-grid').innerHTML=
+    '<div class="stat"><div class="stat-num" style="color:#b91c1c">'+accidentOut+'</div><div class="stat-label">事故代車 貸出中</div></div>'+
+    '<div class="stat"><div class="stat-num">'+rentalOut+'<span style="font-size:13px;color:#999"> / '+rentalActive+'</span></div><div class="stat-label">レンタカー 貸出中</div></div>'+
+    '<div class="stat"><div class="stat-num" style="color:#16a34a">'+loanerOut+'<span style="font-size:13px;color:#999"> / '+loanerActive+'</span></div><div class="stat-label">代車 貸出中</div></div>'+
+    '<div class="stat"><div class="stat-num" style="color:#333">¥'+totalSales.toLocaleString()+'</div><div class="stat-label">累計売上</div></div>';
+  document.getElementById('rental-status-list').innerHTML=vehicles.rental.map(function(v){
+    var out=isOut(v.id);
+    var lbl=v.sold?'売却済':out?'貸出中':'空車';
+    var cls=v.sold?'':'badge-'+(out?'out':'in');
+    var sty=v.sold?'background:#f3f4f6;color:#6b7280':'';
+    return '<div class="vehicle-status"><span style="font-size:12px">'+v.model+(v.sold?'<span style="font-size:10px;color:#9ca3af"> 売却'+v.soldDate+'</span>':'')+'<br><span style="color:#999;font-size:11px">'+v.plate+'</span></span><span class="badge '+cls+'" style="'+sty+'">'+lbl+'</span></div>';
+  }).join('') || '<div style="padding:1rem;color:#999;font-size:12px">登録車両なし</div>';
+  document.getElementById('loaner-status-list').innerHTML=vehicles.loaner.map(function(v){
+    var out=isOut(v.id);
+    var lbl=v.sold?'売却済':out?'貸出中':'空車';
+    var cls=v.sold?'':'badge-'+(out?'out':'in');
+    var sty=v.sold?'background:#f3f4f6;color:#6b7280':'';
+    return '<div class="vehicle-status"><span style="font-size:12px">'+v.model+(v.sold?'<span style="font-size:10px;color:#9ca3af"> 売却'+v.soldDate+'</span>':'')+'<br><span style="color:#999;font-size:11px">'+v.plate+'</span></span><span class="badge '+cls+'" style="'+sty+'">'+lbl+'</span></div>';
+  }).join('') || '<div style="padding:1rem;color:#999;font-size:12px">登録車両なし</div>';
+  var recent=records.slice().sort(function(a,b){return new Date(b.outDate)-new Date(a.outDate);}).slice(0,6);
+  document.getElementById('recent-table').innerHTML=recent.map(function(r){
+    var v=getVehicle(r.type,r.vehicleId);
+    var typeLabel=r.type==='accident'?'事故代車':r.type==='rental'?'レンタ':'代車';
+    var typeBadge=r.type==='accident'?'style="background:#fee2e2;color:#991b1b"':r.type==='rental'?'class="badge-rental"':'class="badge-loaner"';
+    return '<tr>'+
+      '<td style="font-size:12px">'+r.outDate.replace('T',' ')+'</td>'+
+      '<td style="font-size:12px">'+(v?v.model:'')+'</td>'+
+      '<td><span class="badge" '+typeBadge+'>'+typeLabel+'</span></td>'+
+      '<td>'+r.name+'</td>'+
+      '<td style="font-size:11px;color:#555">'+(r.insurer?r.insurer.replace('株式会社','㈱'):'—')+'</td>'+
+      '<td style="font-size:12px">'+(r.returnDate?r.returnDate.split('T')[0]:'—')+'</td>'+
+      '<td style="font-size:12px">'+(calcFee(r)>0?'¥'+calcFee(r).toLocaleString():'—')+'</td>'+
+      '<td><span class="badge '+(r.status==='out'?'badge-out':'badge-in')+'">'+(r.status==='out'?'貸出中':'返却済')+'</span></td>'+
+      '<td class="no-print"><button class="btn btn-sm" onclick="showAnnai('+r.id+')">利用案内</button></td>'+
+    '</tr>';
+  }).join('');
+}
+
+function calcFee(r){
+  if(r.fee>0) return r.fee;
+  if(r.dayFee>0 && r.returnDate && r.outDate){
+    var days=Math.ceil((new Date(r.returnDate)-new Date(r.outDate))/(1000*60*60*24))+1;
+    return r.dayFee*Math.max(days,1);
+  }
+  return 0;
+}
+
+function buildAccVehicleList(){
+  var sel=document.getElementById('a-vehicle');
+  sel.innerHTML=vehicles.rental.filter(function(v){return !v.sold;}).map(function(v){
+    var out=isOut(v.id);
+    return '<option value="'+v.id+'" '+(out?'disabled':'')+'>'+v.model+'（'+v.plate+'）'+(out?' ※貸出中':'')+'</option>';
+  }).join('');
+}
+
+function setAccDates(){
+  var now=new Date();
+  document.getElementById('a-acc-date').value=fmt10(now);
+  document.getElementById('a-out-date').value=fmtDT(now);
+  var ret=new Date(now.getTime()+7*24*60*60*1000);
+  document.getElementById('a-in-date').value=fmtDT(ret);
+}
+
+function updateRentalVehicleList(){
+  var type=document.getElementById('f-type').value;
+  var sel=document.getElementById('f-vehicle');
+  sel.innerHTML=vehicles[type].filter(function(v){return !v.sold;}).map(function(v){
+    var out=isOut(v.id);
+    return '<option value="'+v.id+'" '+(out?'disabled':'')+'>'+v.model+'（'+v.plate+'）'+(out?' ※貸出中':'')+'</option>';
+  }).join('');
+}
+
+function setRentalDates(){
+  var now=new Date();
+  document.getElementById('f-out-date').value=fmtDT(now);
+  var ret=new Date(now.getTime()+2*24*60*60*1000);
+  document.getElementById('f-in-date').value=fmtDT(ret);
+}
+
+function pad(n){return String(n).padStart(2,'0');}
+function fmt10(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function fmtDT(d){return fmt10(d)+'T'+pad(d.getHours())+':'+pad(d.getMinutes());}
+
+function saveAccident(){
+  var vid=document.getElementById('a-vehicle').value;
+  var name=document.getElementById('a-user-name').value.trim();
+  var insurer=document.getElementById('a-insurer').value.trim();
+  var caseNo=document.getElementById('a-case-no').value.trim();
+  var tanto=document.getElementById('a-tanto').value.trim();
+  var outDate=document.getElementById('a-out-date').value;
+  if(!vid||!name||!insurer||!caseNo||!tanto||!outDate){
+    alert('必須項目（車両・利用者名・保険会社・担当者・案件番号・利用開始日時）を入力してください');return;
+  }
+  var rec={
+    id:nextId++,type:'accident',vehicleId:vid,
+    insurer:insurer,
+    dept:document.getElementById('a-dept').value,
+    tanto:tanto,
+    insTel:document.getElementById('a-ins-tel').value,
+    insFax:document.getElementById('a-ins-fax').value,
+    caseNo:caseNo,
+    accDate:document.getElementById('a-acc-date').value,
+    contractor:document.getElementById('a-contractor').value,
+    policyNo:document.getElementById('a-policy-no').value,
+    accCar:document.getElementById('a-acc-car').value,
+    accPlate:document.getElementById('a-acc-plate').value,
+    accFrame:document.getElementById('a-acc-frame').value,
+    name:name,
+    phone:document.getElementById('a-user-tel').value,
+    address:document.getElementById('a-user-addr').value,
+    outDate:outDate,
+    inDate:document.getElementById('a-in-date').value,
+    returnDate:null,
+    kmOut:parseInt(document.getElementById('a-km-out').value)||0,
+    kmIn:null,
+    dayFee:parseInt(document.getElementById('a-day-fee').value)||0,
+    fee:0,
+    note:document.getElementById('a-note').value,
+    status:'out'
+  };
+  records.push(rec);
+  autoSaveCustomer(rec.name,rec.phone,rec.address,'');
+  saveAllData();
+  clearAccForm();
+  showAnnai(rec.id);
+}
+
+function clearAccForm(){
+  ['a-insurer','a-dept','a-tanto','a-ins-tel','a-ins-fax','a-case-no',
+   'a-contractor','a-policy-no','a-acc-car','a-acc-plate','a-acc-frame',
+   'a-user-name','a-user-tel','a-user-addr','a-km-out','a-day-fee','a-note'].forEach(function(id){
+    document.getElementById(id).value='';
+  });
+  setAccDates();
+}
+
+function saveRental(){
+  var type=document.getElementById('f-type').value;
+  var vid=document.getElementById('f-vehicle').value;
+  var name=document.getElementById('f-name').value.trim();
+  var phone=document.getElementById('f-phone').value.trim();
+  var outDate=document.getElementById('f-out-date').value;
+  if(!name||!phone||!vid||!outDate){alert('必須項目を入力してください');return;}
+  records.push({
+    id:nextId++,type:type,vehicleId:vid,
+    insurer:'',dept:'',tanto:'',insTel:'',insFax:'',caseNo:'',
+    accDate:'',contractor:'',policyNo:'',accCar:'',accPlate:'',accFrame:'',
+    name:name,phone:phone,
+    address:document.getElementById('f-address').value,
+    license:document.getElementById('f-license').value,
+    outDate:outDate,
+    inDate:document.getElementById('f-in-date').value,
+    returnDate:null,
+    kmOut:parseInt(document.getElementById('f-km-out').value)||0,
+    kmIn:null,dayFee:0,
+    fee:parseInt(document.getElementById('f-fee').value)||0,
+    purpose:document.getElementById('f-purpose').value,
+    note:document.getElementById('f-note').value,
+    status:'out'
+  });
+  alert('貸渡証を保存しました。');
+  clearRentalForm();
+  showTab('dashboard');
+}
+
+function clearRentalForm(){
+  ['f-name','f-phone','f-address','f-license','f-km-out','f-fee','f-purpose','f-note'].forEach(function(id){
+    document.getElementById(id).value='';
+  });
+  setRentalDates();
+}
+
+function renderRecords(){
+  var type=document.getElementById('filter-type').value;
+  var month=document.getElementById('filter-month').value;
+  var status=document.getElementById('filter-status').value;
+  var name=document.getElementById('filter-name').value.toLowerCase();
+  var months=[];
+  records.forEach(function(r){var m=r.outDate.substring(0,7);if(months.indexOf(m)<0)months.push(m);});
+  months.sort().reverse();
+  var sel=document.getElementById('filter-month');
+  var cur=sel.value;
+  sel.innerHTML='<option value="all">すべての月</option>'+months.map(function(m){return '<option value="'+m+'" '+(m===cur?'selected':'')+'>'+m+'</option>';}).join('');
+
+  var filtered=records.filter(function(r){
+    if(type!=='all'&&r.type!==type) return false;
+    if(month!=='all'&&r.outDate.substring(0,7)!==month) return false;
+    if(status!=='all'&&r.status!==status) return false;
+    if(name&&r.name.toLowerCase().indexOf(name)<0&&(!r.insurer||r.insurer.toLowerCase().indexOf(name)<0)) return false;
+    return true;
+  }).sort(function(a,b){return new Date(b.outDate)-new Date(a.outDate);});
+
+  if(!filtered.length){document.getElementById('records-table').innerHTML='<tr><td colspan="11" class="empty">該当する記録がありません</td></tr>';return;}
+  document.getElementById('records-table').innerHTML=filtered.map(function(r){
+    var v=getVehicle(r.type,r.vehicleId);
+    var km=r.kmIn?(r.kmIn-r.kmOut).toLocaleString()+'km':'—';
+    var typeLabel=r.type==='accident'?'事故代車':r.type==='rental'?'レンタ':'代車';
+    var typeBg=r.type==='accident'?'background:#fee2e2;color:#991b1b':r.type==='rental'?'background:#dbeafe;color:#1e40af':'background:#dcfce7;color:#166534';
+    var fee=calcFee(r);
+    return '<tr>'+
+      '<td style="font-size:11px;white-space:nowrap">'+r.outDate.replace('T',' ')+'</td>'+
+      '<td style="font-size:11px">'+(v?v.model:'')+'<br><span style="color:#999;font-size:10px">'+(v?v.plate:'')+'</span></td>'+
+      '<td><span class="badge" style="'+typeBg+'">'+typeLabel+'</span></td>'+
+      '<td style="font-size:12px">'+r.name+'</td>'+
+      '<td style="font-size:11px;color:#555">'+(r.insurer?r.insurer.replace('株式会社','㈱'):'—')+'</td>'+
+      '<td style="font-size:11px;color:#555">'+(r.caseNo||'—')+'</td>'+
+      '<td style="font-size:11px">'+km+'</td>'+
+      '<td style="font-size:12px">'+(fee>0?'¥'+fee.toLocaleString():'—')+'</td>'+
+      '<td style="font-size:11px;white-space:nowrap">'+(r.returnDate?r.returnDate.replace('T',' '):'—')+'</td>'+
+      '<td><span class="badge '+(r.status==='out'?'badge-out':'badge-in')+'">'+(r.status==='out'?'貸出中':'返却済')+'</span></td>'+
+      '<td class="no-print" style="white-space:nowrap">'+
+        '<button class="btn btn-sm" style="margin-right:4px" onclick="showAnnai('+r.id+')">利用案内</button>'+
+        '<button class="btn btn-sm" style="margin-right:4px;color:#0891b2;border-color:#0891b2" onclick="editRecord('+r.id+')">編集</button>'+
+        (r.status==='out'?'<button class="btn btn-sm" onclick="returnVehicle('+r.id+')">返却</button>':'')+
+      '</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function returnVehicle(id){
+  var r=records.find(function(x){return x.id===id;});
+  if(!r)return;
+  var km=prompt('返却時の走行距離（km）を入力してください\n出発時：'+r.kmOut+'km');
+  if(km===null)return;
+  r.kmIn=parseInt(km)||r.kmOut;
+  r.returnDate=new Date().toISOString().slice(0,16);
+  r.status='returned';
+  renderRecords();
+}
+
+var currentPrintMode = 'both';
+
+function setPrintMode(mode){
+  currentPrintMode = mode;
+  document.body.classList.remove('print-annai-only','print-invoice-only');
+  if(mode==='annai')   document.body.classList.add('print-annai-only');
+  if(mode==='invoice') document.body.classList.add('print-invoice-only');
+  ['both','annai','invoice'].forEach(function(m){
+    var el = document.getElementById('print-mode-'+m);
+    if(el){ el.style.background=m===mode?'#1a56db':''; el.style.color=m===mode?'#fff':''; el.style.borderColor=m===mode?'#1a56db':'#d0d0d0'; }
+  });
+}
+
+function buildDocHtml(r, docType){
+  var v = getVehicle(r.type, r.vehicleId);
+  var today = new Date();
+  var todayStr = today.getFullYear()+'年'+(today.getMonth()+1)+'月'+today.getDate()+'日';
+
+  // 返却日・日数・金額計算
+  var retDate = r.returnDate ? r.returnDate.split('T')[0] : (r.inDate ? r.inDate.split('T')[0] : '');
+  var days = 0;
+  if(r.outDate && retDate){
+    days = Math.ceil((new Date(retDate) - new Date(r.outDate.split('T')[0])) / (1000*60*60*24)) + 1;
+    if(days < 1) days = 1;
+  }
+  var unitFee = r.dayFee > 0 ? r.dayFee : (days > 0 && r.fee > 0 ? Math.round(r.fee/days) : r.fee);
+  var totalFee = r.dayFee > 0 && days > 0 ? r.dayFee * days : r.fee;
+  // 税抜・消費税（税込前提のため逆算）
+  var taxRate = 0.10;
+  var feeExTax = Math.round(totalFee / (1+taxRate));
+  var tax = totalFee - feeExTax;
+
+  var isInvoice = docType === 'invoice';
+  var title = isInvoice ? '請　求　書' : 'ご利用案内';
+  var wrapClass = isInvoice ? 'invoice-wrap annai-wrap' : 'annai-wrap-doc annai-wrap';
+
+  var html = '<div class="'+wrapClass+'">';
+  html += '<div class="annai-title">'+title+'</div>';
+  html += '<div class="annai-date">'+todayStr+'</div>';
+
+  // ヘッダー（宛先＋発行元）
+  html += '<div class="annai-header">';
+  html += '<div class="annai-from">';
+  if(r.insurer){
+    html += '<div class="company">'+r.insurer+'</div>';
+    if(r.dept) html += '<div class="company">'+r.dept+'</div>';
+    html += '<div class="tant" style="margin-top:8px">担当者　'+r.tanto+' 様</div>';
+    if(r.insTel) html += '<div>TEL：'+r.insTel+'</div>';
+    if(r.insFax) html += '<div>FAX：'+r.insFax+'</div>';
+  } else {
+    html += '<div class="tant">'+r.name+' 様</div>';
+  }
+  html += '</div>';
+  html += '<div class="annai-to">';
+  html += '<div class="shop-name">'+SHOP.name+'</div>';
+  html += '<div>担当者　'+SHOP.tanto+'</div>';
+  html += '<div>'+SHOP.addr+'</div>';
+  html += '<div>TEL：'+SHOP.tel+'</div>';
+  html += '<div>FAX：'+SHOP.fax+'</div>';
+  html += '</div></div>';
+
+  // 事故・契約情報テーブル
+  html += '<table class="annai-table">';
+  if(r.caseNo) html += '<tr><td class="lbl">案件番号</td><td>'+r.caseNo+'</td></tr>';
+  if(r.accDate){
+    var ad = r.accDate.split('-');
+    html += '<tr><td class="lbl">事故・故障日</td><td>'+ad[0]+'年'+parseInt(ad[1])+'月'+parseInt(ad[2])+'日</td></tr>';
+  }
+  if(r.contractor || r.accCar){
+    var ci = '';
+    if(r.contractor) ci += '氏　名：'+r.contractor+' 様<br>';
+    if(r.policyNo)   ci += '証券番号：'+r.policyNo+'<br>';
+    if(r.accCar)     ci += '車　名：'+r.accCar+'<br>';
+    if(r.accPlate)   ci += '登録番号：'+r.accPlate+'<br>';
+    if(r.accFrame)   ci += '車体番号：'+r.accFrame;
+    html += '<tr><td class="lbl">保険契約者</td><td>'+ci+'</td></tr>';
+  }
+  html += '<tr><td class="lbl">レンタカー利用者</td><td>'+r.name+' 様'+(r.phone?'<br>連絡先：'+r.phone:'')+'</td></tr>';
+  html += '</table>';
+
+  // 車両・期間ボックス
+  html += '<div class="annai-box">';
+  if(v){
+    html += '<div class="annai-box-row"><div class="annai-box-lbl">ご利用レンタカー</div><div class="annai-box-val">'+v.model+(v.year?'（年式：'+v.year+'）':'')+'<br>登録番号：'+v.plate+'</div></div>';
+  }
+  html += '<div class="annai-box-row"><div class="annai-box-lbl">利用開始日時</div><div class="annai-box-val">'+r.outDate.replace('T',' ')+':00</div></div>';
+  // 返却日は請求書のみ表示
+  if(retDate && isInvoice){
+    html += '<div class="annai-box-row"><div class="annai-box-lbl">返却日</div><div class="annai-box-val">'+retDate+(days>0?' （'+days+'日間）':'')+'</div></div>';
+  }
+  html += '</div>';
+
+  // 請求書の場合：料金明細テーブルを追加
+  if(isInvoice && totalFee > 0){
+    html += '<div style="margin-top:12px">';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+    html += '<thead><tr style="background:#f0f4ff">';
+    html += '<th style="border:1px solid #ccc;padding:7px 10px;text-align:left">項目</th>';
+    html += '<th style="border:1px solid #ccc;padding:7px 10px;text-align:right">日数</th>';
+    html += '<th style="border:1px solid #ccc;padding:7px 10px;text-align:right">日額（税込）</th>';
+    html += '<th style="border:1px solid #ccc;padding:7px 10px;text-align:right">金額（税込）</th>';
+    html += '</tr></thead><tbody>';
+    html += '<tr>';
+    html += '<td style="border:1px solid #ccc;padding:7px 10px">レンタカー利用料</td>';
+    html += '<td style="border:1px solid #ccc;padding:7px 10px;text-align:right">'+(days>0?days+'日':'—')+'</td>';
+    html += '<td style="border:1px solid #ccc;padding:7px 10px;text-align:right">'+(unitFee>0?unitFee.toLocaleString()+' 円':'—')+'</td>';
+    html += '<td style="border:1px solid #ccc;padding:7px 10px;text-align:right;font-weight:600">'+totalFee.toLocaleString()+' 円</td>';
+    html += '</tr>';
+    html += '</tbody>';
+    html += '<tfoot>';
+    html += '<tr style="background:#fafafa"><td colspan="3" style="border:1px solid #ccc;padding:7px 10px;text-align:right">税抜金額</td><td style="border:1px solid #ccc;padding:7px 10px;text-align:right">'+feeExTax.toLocaleString()+' 円</td></tr>';
+    html += '<tr style="background:#fafafa"><td colspan="3" style="border:1px solid #ccc;padding:7px 10px;text-align:right">消費税（10%）</td><td style="border:1px solid #ccc;padding:7px 10px;text-align:right">'+tax.toLocaleString()+' 円</td></tr>';
+    html += '<tr style="background:#eff6ff"><td colspan="3" style="border:1px solid #ccc;padding:7px 10px;text-align:right;font-weight:700">ご請求金額（税込）</td><td style="border:1px solid #ccc;padding:7px 10px;text-align:right;font-size:16px;font-weight:700;color:#1a56db">'+totalFee.toLocaleString()+' 円</td></tr>';
+    html += '</tfoot></table></div>';
+  } else if(!isInvoice){
+    // 利用案内：日額のみ表示
+    if(r.dayFee>0){
+      html += '<div class="annai-box" style="margin-top:8px"><div class="annai-box-row"><div class="annai-box-lbl">日額</div><div class="annai-box-val">'+r.dayFee.toLocaleString()+' 円（税込）</div></div></div>';
+    } else if(r.fee>0){
+      html += '<div class="annai-box" style="margin-top:8px"><div class="annai-box-row"><div class="annai-box-lbl">料金</div><div class="annai-box-val">'+r.fee.toLocaleString()+' 円（税込）</div></div></div>';
+    }
+  }
+
+  // 振込先（請求書のみ）
+  if(isInvoice && SHOP.bank){
+    html += '<div style="margin-top:10px;border:1px solid #ccc;padding:8px 12px;font-size:12px">';
+    html += '<div style="font-weight:700;margin-bottom:4px">お振込先</div>';
+    html += SHOP.bank.replace(/\n/g,'<br>');
+    html += '</div>';
+  }
+
+  // 備考
+  html += '<div class="annai-biko" style="margin-top:10px"><div class="annai-biko-lbl">備考</div>';
+  html += '<div class="annai-biko-box">'+(r.note||'')+'</div></div>';
+  html += '</div>';
+  return html;
+}
+
+function showAnnai(id){
+  var r = records.find(function(x){return x.id===id;});
+  if(!r){alert('記録が見つかりません');return;}
+
+  var annaiHtml   = buildDocHtml(r, 'annai');
+  var invoiceHtml = buildDocHtml(r, 'invoice');
+  document.getElementById('annai-content').innerHTML = annaiHtml + invoiceHtml;
+  setPrintMode('both');
+  showTab('annai');
+}
+
+function renderVehicles(){
+  var rentalRows = vehicles.rental.map(function(v){
+    var out = isOut(v.id);
+    var canDelete = !out && (!records.some(function(r){return r.vehicleId===v.id;}) || v.sold);
+    var klbl=v.ktype==='normal'?'普通車':'軽自動車';
+    var kbg=v.ktype==='normal'?'background:#fef9c3;color:#854d0e':'background:#ede9fe;color:#5b21b6';
+    return '<tr>'+
+      '<td style="font-size:12px">'+v.plate+'</td>'+
+      '<td style="font-size:12px">'+v.model+'</td>'+
+      '<td><span class="badge" style="'+kbg+'">'+klbl+'</span></td>'+
+      '<td style="font-size:12px">'+v.year+'</td>'+
+      '<td style="font-size:11px;color:#555">'+v.frame+'</td>'+
+      '<td style="font-size:11px;color:#888">'+v.vnote+'</td>'+
+      '<td><span class="badge '+(v.sold?'':'')+(out?'badge-out':v.sold?'':'badge-in')+'" style="'+(v.sold?'background:#f3f4f6;color:#6b7280':'')+'">'+( v.sold?'売却済':out?'貸出中':'空車')+'</span></td>'+
+      '<td class="no-print">'+
+        '<button class="btn btn-sm" style="margin-right:4px" onclick="editVehicle(\'rental\',\''+v.id+'\')">編集</button>'+
+        '<button class="btn btn-sm" style="margin-right:4px;color:#b45309;border-color:#b45309" onclick="sellVehicle(\'rental\',\''+v.id+'\')">売却</button>'+
+        (canDelete?'<button class="btn btn-sm" style="color:#dc2626;border-color:#dc2626" onclick="deleteVehicle(\'rental\',\''+v.id+'\')">削除</button>':'')+
+      '</td>'+
+    '</tr>';
+  }).join('');
+  document.getElementById('vehicle-rental-table').innerHTML = rentalRows || '<tr><td colspan="8" class="empty">登録車両がありません</td></tr>';
+  document.getElementById('rental-count-badge').textContent = vehicles.rental.length + '台';
+
+  var loanerRows = vehicles.loaner.map(function(v){
+    var out = isOut(v.id);
+    var canDelete = !out && (!records.some(function(r){return r.vehicleId===v.id;}) || v.sold);
+    var klbl=v.ktype==='normal'?'普通車':'軽自動車';
+    var kbg=v.ktype==='normal'?'background:#fef9c3;color:#854d0e':'background:#ede9fe;color:#5b21b6';
+    return '<tr>'+
+      '<td style="font-size:12px">'+v.plate+'</td>'+
+      '<td style="font-size:12px">'+v.model+'</td>'+
+      '<td><span class="badge" style="'+kbg+'">'+klbl+'</span></td>'+
+      '<td style="font-size:12px">'+v.year+'</td>'+
+      '<td style="font-size:11px;color:#555">'+v.frame+'</td>'+
+      '<td style="font-size:11px;color:#888">'+v.vnote+'</td>'+
+      '<td><span class="badge '+(v.sold?'':'')+(out?'badge-out':v.sold?'':'badge-in')+'" style="'+(v.sold?'background:#f3f4f6;color:#6b7280':'')+'">'+( v.sold?'売却済':out?'貸出中':'空車')+'</span></td>'+
+      '<td class="no-print">'+
+        '<button class="btn btn-sm" style="margin-right:4px" onclick="editVehicle(\'loaner\',\''+v.id+'\')">編集</button>'+
+        '<button class="btn btn-sm" style="margin-right:4px;color:#b45309;border-color:#b45309" onclick="sellVehicle(\'loaner\',\''+v.id+'\')">売却</button>'+
+        (canDelete?'<button class="btn btn-sm" style="color:#dc2626;border-color:#dc2626" onclick="deleteVehicle(\'loaner\',\''+v.id+'\')">削除</button>':'')+
+      '</td>'+
+    '</tr>';
+  }).join('');
+  document.getElementById('vehicle-loaner-table').innerHTML = loanerRows || '<tr><td colspan="8" class="empty">登録車両がありません</td></tr>';
+  document.getElementById('loaner-count-badge').textContent = vehicles.loaner.length + '台';
+}
+var vehicleEditId = null;
+var vehicleEditType = null;
+
+function addVehicle(){
+  var type  = document.getElementById('v-type').value;
+  var ktype = document.getElementById('v-ktype').value;
+  var model = document.getElementById('v-model').value.trim();
+  var plate = document.getElementById('v-plate').value.trim();
+  var year  = document.getElementById('v-year').value.trim();
+  var frame = document.getElementById('v-frame').value.trim();
+  var vnote = document.getElementById('v-note').value.trim();
+  if(!model || !plate){ alert('車種と登録番号は必須です'); return; }
+
+  // 重複チェック
+  var dup = vehicles.rental.concat(vehicles.loaner).some(function(v){ return v.plate===plate && v.id!==vehicleEditId; });
+  if(dup){ alert('同じ登録番号の車両が既に登録されています'); return; }
+
+  if(vehicleEditId){
+    // 編集モード
+    var arr = vehicles[vehicleEditType];
+    var idx = arr.findIndex(function(v){ return v.id===vehicleEditId; });
+    if(idx>=0){
+      // 区分変更の場合は移動
+      if(vehicleEditType !== type){
+        var v = arr.splice(idx,1)[0];
+        v.model=model; v.plate=plate; v.year=year; v.frame=frame; v.vnote=vnote;
+        vehicles[type].push(v);
+      } else {
+        arr[idx].model=model; arr[idx].plate=plate; arr[idx].ktype=ktype; arr[idx].year=year;
+        arr[idx].frame=frame; arr[idx].vnote=vnote;
+        // sold状態は維持（編集で解除しない）
+      }
+    }
+    vehicleEditId = null; vehicleEditType = null;
+    document.querySelector('[onclick="addVehicle()"]').textContent = '＋ 登録する';
+    alert('車両情報を更新しました');
+  } else {
+    // 新規登録
+    var newId = type.charAt(0).toUpperCase() + String(Date.now()).slice(-4);
+    vehicles[type].push({ id:newId, plate:plate, model:model, ktype:ktype, year:year, frame:frame, vnote:vnote });
+    alert('車両を登録しました：' + model + '（' + plate + '）');
+  }
+  clearVehicleForm();
+  renderVehicles();
+  buildAccVehicleList();
+  updateRentalVehicleList();
+}
+
+function editVehicle(type, id){
+  var v = vehicles[type].find(function(x){ return x.id===id; });
+  if(!v) return;
+  document.getElementById('v-type').value  = type;
+  document.getElementById('v-ktype').value = v.ktype||'kei';
+  document.getElementById('v-model').value = v.model;
+  document.getElementById('v-plate').value = v.plate;
+  document.getElementById('v-year').value  = v.year;
+  document.getElementById('v-frame').value = v.frame;
+  document.getElementById('v-note').value  = v.vnote || '';
+  vehicleEditId   = id;
+  vehicleEditType = type;
+  document.querySelector('[onclick="addVehicle()"]').textContent = '✔ 更新する';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function sellVehicle(type, id){
+  var v = vehicles[type].find(function(x){ return x.id===id; });
+  if(!v) return;
+  if(isOut(id)){ alert('貸出中のため売却できません。先に返却処理をしてください。'); return; }
+  var dateStr = prompt(v.model + '（' + v.plate + '）を売却済みにします。\n売却日を入力してください（例：2026-06-27）', new Date().toISOString().slice(0,10));
+  if(dateStr===null) return;
+  v.sold = true;
+  v.soldDate = dateStr;
+  renderVehicles();
+  buildAccVehicleList();
+  updateRentalVehicleList();
+  alert('売却済みとして登録しました。\n履歴は貸渡一覧に保持されます。');
+}
+
+function deleteVehicle(type, id){
+  var v = vehicles[type].find(function(x){ return x.id===id; });
+  if(!v) return;
+  if(isOut(id)){ alert('貸出中のため削除できません。'); return; }
+  var hasHistory = records.some(function(r){return r.vehicleId===id;});
+  var msg = hasHistory
+    ? v.model + '（' + v.plate + '）\n\n※貸渡履歴がありますが本当に削除しますか？\n削除すると履歴の車両情報が参照できなくなります。\n\n売却の場合は「売却」ボタンをご利用ください。'
+    : v.model + '（' + v.plate + '）を削除しますか？';
+  if(!confirm(msg)) return;
+  vehicles[type] = vehicles[type].filter(function(x){ return x.id!==id; });
+  renderVehicles();
+  buildAccVehicleList();
+  updateRentalVehicleList();
+  alert('削除しました。');
+}
+
+function clearVehicleForm(){
+  document.getElementById('v-model').value = '';
+  document.getElementById('v-plate').value = '';
+  document.getElementById('v-year').value  = '';
+  document.getElementById('v-frame').value = '';
+  document.getElementById('v-note').value  = '';
+  vehicleEditId = null; vehicleEditType = null;
+  document.querySelector('[onclick="addVehicle()"]').textContent = '＋ 登録する';
+}
+
+function renderReport(){
+  var year=parseInt(document.getElementById('report-year').value);
+  document.getElementById('report-year-label').textContent=year+'年 年間実績報告書';
+  var yr=records.filter(function(r){return new Date(r.outDate).getFullYear()===year;});
+  var ren=yr.filter(function(r){return r.type==='rental'||r.type==='accident';});
+  var lon=yr.filter(function(r){return r.type==='loaner';});
+  function totalKm(arr){return arr.filter(function(r){return r.kmIn;}).reduce(function(s,r){return s+(r.kmIn-r.kmOut);},0);}
+  function totalFee(arr){return arr.reduce(function(s,r){return s+calcFee(r);},0);}
+  var accCount=ren.filter(function(r){return r.type==='accident';}).length;
+  var renKei   =ren.filter(function(r){return getKtype(r)==='kei';});
+  var renNormal=ren.filter(function(r){return getKtype(r)==='normal';});
+  document.getElementById('report-rental-stats').innerHTML=
+    '<div class="stat"><div class="stat-num">'+ren.length+'</div><div class="stat-label">総貸出件数</div></div>'+
+    '<div class="stat"><div class="stat-num" style="color:#b91c1c">'+accCount+'</div><div class="stat-label">うち事故代車</div></div>'+
+    '<div class="stat"><div class="stat-num" style="color:#5b21b6">'+renKei.length+'</div><div class="stat-label">うち軽自動車</div></div>'+
+    '<div class="stat"><div class="stat-num" style="color:#854d0e">'+renNormal.length+'</div><div class="stat-label">うち普通車</div></div>';
+  document.getElementById('report-loaner-stats').innerHTML=
+    '<div class="stat"><div class="stat-num">'+lon.length+'</div><div class="stat-label">総貸出件数</div></div>'+
+    '<div class="stat"><div class="stat-num">無償</div><div class="stat-label">整備代車</div></div>'+
+    '<div class="stat"><div class="stat-num">'+totalKm(lon).toLocaleString()+'km</div><div class="stat-label">総走行距離</div></div>'+
+    '<div class="stat"><div class="stat-num">'+(lon.length>0?Math.round(totalKm(lon)/lon.length):'0')+'km</div><div class="stat-label">平均走行距離</div></div>';
+  var rows='';
+  var sumRC=0,sumRKei=0,sumRNorm=0,sumAC=0,sumRS=0,sumRK=0,sumLC=0,sumLKei=0,sumLNorm=0,sumLK=0;
+  for(var m=1;m<=12;m++){
+    var mr=ren.filter(function(r){return new Date(r.outDate).getMonth()+1===m;});
+    var ml=lon.filter(function(r){return new Date(r.outDate).getMonth()+1===m;});
+    var ac=mr.filter(function(r){return r.type==='accident';}).length;
+    var rkei=mr.filter(function(r){return getKtype(r)==='kei';}).length;
+    var rnorm=mr.filter(function(r){return getKtype(r)==='normal';}).length;
+    var lkei=ml.filter(function(r){return getKtype(r)==='kei';}).length;
+    var lnorm=ml.filter(function(r){return getKtype(r)==='normal';}).length;
+    var rk=totalKm(mr);var lk=totalKm(ml);var rs=totalFee(mr);
+    sumRC+=mr.length;sumRKei+=rkei;sumRNorm+=rnorm;sumAC+=ac;sumRS+=rs;sumRK+=rk;
+    sumLC+=ml.length;sumLKei+=lkei;sumLNorm+=lnorm;sumLK+=lk;
+    rows+='<tr>'+
+      '<td>'+m+'月</td>'+
+      '<td>'+(mr.length>0?mr.length+'件':'—')+'</td>'+
+      '<td>'+(rkei>0?'<span style="color:#5b21b6;font-weight:600">'+rkei+'件</span>':'—')+'</td>'+
+      '<td>'+(rnorm>0?'<span style="color:#854d0e;font-weight:600">'+rnorm+'件</span>':'—')+'</td>'+
+      '<td>'+(ac>0?'<span style="color:#b91c1c;font-weight:600">'+ac+'件</span>':'—')+'</td>'+
+      '<td>'+(rs>0?'¥'+rs.toLocaleString():'—')+'</td>'+
+      '<td>'+(rk>0?rk.toLocaleString()+'km':'—')+'</td>'+
+      '<td>'+(ml.length>0?ml.length+'件':'—')+'</td>'+
+      '<td>'+(lkei>0?'<span style="color:#5b21b6;font-weight:600">'+lkei+'件</span>':'—')+'</td>'+
+      '<td>'+(lnorm>0?'<span style="color:#854d0e;font-weight:600">'+lnorm+'件</span>':'—')+'</td>'+
+      '<td>'+(lk>0?lk.toLocaleString()+'km':'—')+'</td>'+
+    '</tr>';
+  }
+  document.getElementById('report-table').innerHTML=rows;
+  document.getElementById('report-foot').innerHTML=
+    '<tr style="background:#eef2ff;font-weight:700">'+
+      '<td>合計</td>'+
+      '<td>'+sumRC+'件</td>'+
+      '<td style="color:#5b21b6">'+sumRKei+'件</td>'+
+      '<td style="color:#854d0e">'+sumRNorm+'件</td>'+
+      '<td style="color:#b91c1c">'+sumAC+'件</td>'+
+      '<td>¥'+sumRS.toLocaleString()+'</td>'+
+      '<td>'+sumRK.toLocaleString()+'km</td>'+
+      '<td>'+sumLC+'件</td>'+
+      '<td style="color:#5b21b6">'+sumLKei+'件</td>'+
+      '<td style="color:#854d0e">'+sumLNorm+'件</td>'+
+      '<td>'+sumLK.toLocaleString()+'km</td>'+
+    '</tr>';
+}
+
+
+function renderExport(){
+  var year = parseInt(document.getElementById('export-year').value);
+  // レンタカー＋事故代車のみ（代車loaner除外）
+  var yr = records.filter(function(r){
+    return (r.type==='rental'||r.type==='accident') && new Date(r.outDate).getFullYear()===year;
+  });
+
+  function calcDays(r){
+    var out = new Date(r.outDate);
+    var ret = r.returnDate ? new Date(r.returnDate) : new Date(r.inDate||r.outDate);
+    var d = Math.ceil((ret-out)/(1000*60*60*24)) + 1;
+    return Math.max(d,1);
+  }
+  function calcKm(r){ return (r.kmIn&&r.kmOut) ? r.kmIn-r.kmOut : 0; }
+  function calcFeeR(r){
+    if(r.fee>0) return r.fee;
+    if(r.dayFee>0){var d=calcDays(r);return r.dayFee*d;}
+    return 0;
+  }
+
+  var ret_records = yr.filter(function(r){return r.status==='returned';});
+  var totalKaishi = ret_records.length;
+  var totalNissha = ret_records.reduce(function(s,r){return s+calcDays(r);},0);
+  var totalKm = ret_records.reduce(function(s,r){return s+calcKm(r);},0);
+  var totalFee = ret_records.reduce(function(s,r){return s+calcFeeR(r);},0);
+
+  // 様式1 転記テーブル
+  // 軽/普通判定
+  function getKtypeE(r){
+    var v=getAllVehicles().find(function(x){return x.id===r.vehicleId;});
+    return v?(v.ktype||'kei'):'kei';
+  }
+  var retKei    = ret_records.filter(function(r){return getKtypeE(r)==='kei';});
+  var retNormal = ret_records.filter(function(r){return getKtypeE(r)==='normal';});
+  var keiNissha = retKei.reduce(function(s,r){return s+calcDays(r);},0);
+  var keiKm2    = retKei.reduce(function(s,r){return s+calcKm(r);},0);
+  var keiF      = retKei.reduce(function(s,r){return s+calcFeeR(r);},0);
+  var normNissha= retNormal.reduce(function(s,r){return s+calcDays(r);},0);
+  var normKm2   = retNormal.reduce(function(s,r){return s+calcKm(r);},0);
+  var normF     = retNormal.reduce(function(s,r){return s+calcFeeR(r);},0);
+  function etd(v,color){return '<td style="border:1px solid #ddd;padding:8px 12px;text-align:center;font-size:15px;font-weight:700;color:'+(color||'#1a56db')+'">'+v+'</td>';}
+  function etdl(v){return '<td style="border:1px solid #ddd;padding:8px 12px;color:#555">'+v+'</td>';}
+  function etdn(v){return '<td style="border:1px solid #ddd;padding:8px 12px;font-size:11px;color:#888">'+v+'</td>';}
+  function etdt(v){return '<td style="border:1px solid #ddd;padding:8px 12px;font-weight:600">'+v+'</td>';}
+  var ebg=['background:#fff','background:#f9fafb'];
+  document.getElementById('export-table-wrap').innerHTML=
+    '<table style="border-collapse:collapse;width:100%;font-size:13px">'+
+    '<thead><tr style="background:#eff6ff">'+
+      '<th style="border:1px solid #bfdbfe;padding:8px 12px;text-align:left">項目</th>'+
+      '<th style="border:1px solid #bfdbfe;padding:8px 12px;text-align:center">合計</th>'+
+      '<th style="border:1px solid #bfdbfe;padding:8px 12px;text-align:center;color:#5b21b6">うち軽自動車</th>'+
+      '<th style="border:1px solid #bfdbfe;padding:8px 12px;text-align:center;color:#854d0e">うち普通車</th>'+
+      '<th style="border:1px solid #bfdbfe;padding:8px 12px;text-align:left">Excel転記先（様式1）</th>'+
+      '<th style="border:1px solid #bfdbfe;padding:8px 12px;text-align:left">備考</th>'+
+    '</tr></thead><tbody>'+
+    '<tr style="'+ebg[0]+'">'+etdt('延貸渡回数')+etd(totalKaishi+'回')+etd(retKei.length+'回','#5b21b6')+etd(retNormal.length+'回','#854d0e')+etdl('乗用車 ＞ 延貸渡回数')+etdn('返却済のみ')+'</tr>'+
+    '<tr style="'+ebg[1]+'">'+etdt('延貸渡日車数')+etd(totalNissha+'日')+etd(keiNissha+'日','#5b21b6')+etd(normNissha+'日','#854d0e')+etdl('乗用車 ＞ 延貸渡日車数')+etdn('貸出〜返却の合計日数')+'</tr>'+
+    '<tr style="'+ebg[0]+'">'+etdt('延走行キロ')+etd(totalKm.toLocaleString()+'km')+etd(keiKm2.toLocaleString()+'km','#5b21b6')+etd(normKm2.toLocaleString()+'km','#854d0e')+etdl('乗用車 ＞ 延走行キロ')+etdn('未入力分は0計上')+'</tr>'+
+    '<tr style="'+ebg[1]+'">'+etdt('総貸渡料金')+etd('¥'+totalFee.toLocaleString())+etd('¥'+keiF.toLocaleString(),'#5b21b6')+etd('¥'+normF.toLocaleString(),'#854d0e')+etdl('乗用車 ＞ 総貸渡料金')+etdn('事故代車は日額×日数')+'</tr>'+
+    '</tbody></table>';
+  document.getElementById('vehicle-count-grid').innerHTML =
+    '<div class="stat"><div class="stat-num" style="font-size:20px">'+rentalCount+'</div><div class="stat-label">6/30現在（参考）<br><span style="font-size:10px;color:#888">実際の保有台数を確認</span></div></div>'+
+    '<div class="stat"><div class="stat-num" style="font-size:20px">'+rentalCount+'</div><div class="stat-label">9/30現在（参考）<br><span style="font-size:10px;color:#888">実際の保有台数を確認</span></div></div>'+
+    '<div class="stat"><div class="stat-num" style="font-size:20px">'+rentalCount+'</div><div class="stat-label">12/31現在（参考）<br><span style="font-size:10px;color:#888">実際の保有台数を確認</span></div></div>'+
+    '<div class="stat"><div class="stat-num" style="font-size:20px">'+rentalCount+'</div><div class="stat-label">3/31現在（参考）<br><span style="font-size:10px;color:#888">実際の保有台数を確認</span></div></div>';
+
+  // 月別明細
+  var months = [];
+  for(var m=4;m<=12;m++) months.push(m);
+  for(var m2=1;m2<=3;m2++) months.push(m2);
+  // 年度対応: 4〜12月はyear-1、1〜3月はyear
+  var fiscalYear = year - 1; // 令和7年度 = 2025/4〜2026/3
+  var rows = '';
+  var sumK=0,sumN=0,sumKm=0,sumFee=0;
+  months.forEach(function(m){
+    var fy = (m>=4) ? fiscalYear : year;
+    var mr = ret_records.filter(function(r){
+      var d=new Date(r.outDate);
+      return d.getFullYear()===fy && d.getMonth()+1===m;
+    });
+    var k=mr.length;
+    var n=mr.reduce(function(s,r){return s+calcDays(r);},0);
+    var km=mr.reduce(function(s,r){return s+calcKm(r);},0);
+    var fee=mr.reduce(function(s,r){return s+calcFeeR(r);},0);
+    sumK+=k;sumN+=n;sumKm+=km;sumFee+=fee;
+    var mLabel = (m>=4?fiscalYear:year)+'/'+(m<10?'0':'')+m;
+    rows+='<tr>'+
+      '<td>'+mLabel+'</td>'+
+      '<td style="text-align:right">'+(k>0?k+'回':'—')+'</td>'+
+      '<td style="text-align:right">'+(n>0?n+'日':'—')+'</td>'+
+      '<td style="text-align:right">'+(km>0?km.toLocaleString()+'km':'—')+'</td>'+
+      '<td style="text-align:right">'+(fee>0?'¥'+fee.toLocaleString():'—')+'</td>'+
+      '<td style="font-size:11px;color:#888">'+(k>0?k+'件':'')+'</td>'+
+    '</tr>';
+  });
+  document.getElementById('export-monthly-table').innerHTML = rows;
+  document.getElementById('export-monthly-foot').innerHTML =
+    '<tr style="background:#eff6ff;font-weight:700">'+
+      '<td>年度計</td>'+
+      '<td style="text-align:right;color:#1a56db">'+sumK+'回</td>'+
+      '<td style="text-align:right;color:#1a56db">'+sumN+'日</td>'+
+      '<td style="text-align:right;color:#1a56db">'+sumKm.toLocaleString()+'km</td>'+
+      '<td style="text-align:right;color:#1a56db">¥'+sumFee.toLocaleString()+'</td>'+
+      '<td></td>'+
+    '</tr>';
+
+  // 全件明細
+  var allR = yr.filter(function(r){return r.status==='returned';})
+    .sort(function(a,b){return new Date(a.outDate)-new Date(b.outDate);});
+  var detail = '';
+  allR.forEach(function(r,i){
+    var v = getVehicle(r.type,r.vehicleId);
+    var d=calcDays(r);
+    var km=calcKm(r);
+    var fee=calcFeeR(r);
+    var typeLabel=r.type==='accident'?'事故代車':'レンタ';
+    var typeBg=r.type==='accident'?'background:#fee2e2;color:#991b1b':'background:#dbeafe;color:#1e40af';
+    detail+='<tr>'+
+      '<td style="color:#888;font-size:11px">'+(i+1)+'</td>'+
+      '<td style="font-size:12px;white-space:nowrap">'+r.outDate.split('T')[0]+'</td>'+
+      '<td style="font-size:12px;white-space:nowrap">'+(r.returnDate?r.returnDate.split('T')[0]:'未返却')+'</td>'+
+      '<td style="text-align:right;font-weight:600">'+d+'日</td>'+
+      '<td style="font-size:12px">'+(v?v.model:'')+'</td>'+
+      '<td style="font-size:11px;color:#555">'+(v?v.plate:'')+'</td>'+
+      '<td style="font-size:12px">'+r.name+'</td>'+
+      '<td style="text-align:right;font-size:12px">'+(km>0?km.toLocaleString():'—')+'</td>'+
+      '<td style="text-align:right;font-size:12px">'+(fee>0?'¥'+fee.toLocaleString():'—')+'</td>'+
+      '<td><span class="badge" style="'+typeBg+'">'+typeLabel+'</span></td>'+
+    '</tr>';
+  });
+  if(!detail) detail='<tr><td colspan="10" class="empty">該当する貸渡記録がありません</td></tr>';
+  document.getElementById('export-detail-table').innerHTML=detail;
+}
+
+// ===== 顧客管理 =====
+// ===== フリガナ関連 =====
+
+function hiraToKata(str){
+  return str.replace(/[ぁ-ゖ]/g, function(ch){
+    return String.fromCharCode(ch.charCodeAt(0) + 0x60);
+  });
+}
+
+// フリガナ欄直接入力時：ひらがな→カタカナ変換
+// composing中（変換中）は何もしない
+function toKatakana(el){
+  if(el._composing) return;
+  var pos = el.selectionStart;
+  el.value = hiraToKata(el.value);
+  try{ el.setSelectionRange(pos,pos); }catch(e){}
+}
+
+function setupNameInput(){
+  var nameEl = document.getElementById('c-name');
+  var kanaEl = document.getElementById('c-kana');
+  if(!nameEl || !kanaEl || nameEl._kanaSetup) return;
+  nameEl._kanaSetup = true;
+  kanaEl._kanaSetup = true;
+
+  // フリガナ欄のcomposing状態管理
+  kanaEl.addEventListener('compositionstart', function(){
+    kanaEl._composing = true;
+  });
+  kanaEl.addEventListener('compositionend', function(){
+    kanaEl._composing = false;
+    var pos = kanaEl.selectionStart;
+    kanaEl.value = hiraToKata(kanaEl.value);
+    try{ kanaEl.setSelectionRange(pos,pos); }catch(e){}
+  });
+
+  // 氏名欄：変換中の読みを記録
+  var pendingReading = '';
+  nameEl.addEventListener('compositionstart', function(){
+    pendingReading = '';
+  });
+  nameEl.addEventListener('compositionupdate', function(e){
+    pendingReading = e.data || '';
+    // 変換中にフリガナ欄をプレビュー表示
+    kanaEl.value = hiraToKata(pendingReading);
+  });
+  nameEl.addEventListener('compositionend', function(e){
+    // 変換確定時：読みをカタカナでフリガナに確定セット
+    var reading = pendingReading;
+    pendingReading = '';
+    if(reading){
+      kanaEl.value = hiraToKata(reading);
+    }
+  });
+}
+
+
+function saveCustomer(){
+  var name    = document.getElementById('c-name').value.trim();
+  if(!name){ alert('氏名は必須です'); return; }
+  var kana    = document.getElementById('c-kana').value.trim();
+  var phone   = document.getElementById('c-phone').value.trim();
+  var zip     = document.getElementById('c-zip').value.trim();
+  var addr    = document.getElementById('c-addr').value.trim();
+  var addr2   = document.getElementById('c-addr2').value.trim();
+  var license = document.getElementById('c-license').value.trim();
+  var memo    = document.getElementById('c-memo').value.trim();
+  var fullAddr = addr + (addr2 ? ' '+addr2 : '');
+
+  if(custEditId !== null){
+    var cust = customers.find(function(x){return x.id===custEditId;});
+    if(cust){ cust.name=name; cust.kana=kana; cust.phone=phone; cust.zip=zip; cust.addr=fullAddr; cust.license=license; cust.memo=memo; }
+    custEditId = null;
+    document.getElementById('c-save-btn').textContent = '＋ 登録';
+    alert('顧客情報を更新しました');
+  } else {
+    var dup = customers.find(function(x){ return x.name===name && x.phone===phone; });
+    if(dup){ if(!confirm('同じ氏名・電話番号の顧客が登録済みです。重複して登録しますか？')) return; }
+    customers.push({id:custNextId++, name:name, kana:kana, phone:phone, zip:zip, addr:fullAddr, license:license, memo:memo});
+    alert('顧客を登録しました：' + name);
+  }
+  clearCustomerForm();
+  renderCustomers();
+  rebuildCustomerSelects();
+}
+
+function clearCustomerForm(){
+  ['c-name','c-kana','c-phone','c-zip','c-addr','c-addr2','c-license','c-memo'].forEach(function(id){
+    document.getElementById(id).value='';
+  });
+  custEditId = null;
+  document.getElementById('c-save-btn').textContent = '＋ 登録';
+}
+
+function editCustomer(id){
+  var cust = customers.find(function(x){return x.id===id;});
+  if(!cust) return;
+  document.getElementById('c-name').value    = cust.name;
+  document.getElementById('c-kana').value    = cust.kana||'';
+  document.getElementById('c-phone').value   = cust.phone;
+  document.getElementById('c-zip').value     = cust.zip||'';
+  document.getElementById('c-addr').value    = cust.addr||'';
+  document.getElementById('c-addr2').value   = '';
+  document.getElementById('c-license').value = cust.license||'';
+  document.getElementById('c-memo').value    = cust.memo||'';
+  custEditId = id;
+  document.getElementById('c-save-btn').textContent = '✔ 更新';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function deleteCustomer(id){
+  var cust = customers.find(function(x){return x.id===id;});
+  if(!cust) return;
+  if(!confirm(cust.name + ' を削除しますか？')) return;
+  customers = customers.filter(function(x){return x.id!==id;});
+  renderCustomers();
+  rebuildCustomerSelects();
+}
+
+function renderCustomers(){
+  var tbl = document.getElementById('customers-table');
+  if(!tbl) return;
+
+  // 検索フィルター
+  var searchEl = document.getElementById('cust-search');
+  var q = searchEl ? searchEl.value.toLowerCase() : '';
+  var list = [];
+  for(var ci=0; ci<customers.length; ci++){
+    var cust = customers[ci];
+    if(!q ||
+       cust.name.toLowerCase().indexOf(q)>=0 ||
+       (cust.kana && cust.kana.toLowerCase().indexOf(q)>=0) ||
+       (cust.phone && cust.phone.indexOf(q)>=0)){
+      list.push(cust);
+    }
+  }
+
+  if(list.length === 0){
+    tbl.innerHTML = '<tr><td colspan="9" class="empty">' +
+      (customers.length===0 ? '顧客が登録されていません' : '検索結果がありません') +
+      '</td></tr>';
+    return;
+  }
+
+  // フリガナで五十音順ソート（フリガナなしは末尾）
+  list.sort(function(a,b){
+    var ka = a.kana || '';
+    var kb = b.kana || '';
+    if(!ka && !kb) return 0;
+    if(!ka) return 1;
+    if(!kb) return -1;
+    if(ka < kb) return -1;
+    if(ka > kb) return 1;
+    return 0;
+  });
+
+  // 五十音グループ
+  var rowLabel = ['ア行','カ行','サ行','タ行','ナ行','ハ行','マ行','ヤ行','ラ行','ワ・他'];
+  var rowFirst = [
+    'アイウエオあいうえお',
+    'カキクケコかきくけこガギグゲゴがぎぐげご',
+    'サシスセソさしすせそザジズゼゾざじずぜぞ',
+    'タチツテトたちつてとダヂヅデドだぢづでど',
+    'ナニヌネノなにぬねの',
+    'ハヒフヘホはひふへほバビブベボパピプペポばびぶべぼぱぴぷぺぽ',
+    'マミムメモまみむめも',
+    'ヤユヨやゆよ',
+    'ラリルレロらりるれろ',
+    ''
+  ];
+
+  function getGroup(kana){
+    if(!kana) return 9;
+    var ch = kana.charAt(0);
+    for(var gi=0; gi<9; gi++){
+      if(rowFirst[gi].indexOf(ch) >= 0) return gi;
+    }
+    return 9;
+  }
+
+  // グループに振り分け
+  var groups = {};
+  for(var li=0; li<list.length; li++){
+    var g = getGroup(list[li].kana);
+    if(!groups[g]) groups[g] = [];
+    groups[g].push(list[li]);
+  }
+
+  // HTML生成
+  var html = '';
+  for(var gi2=0; gi2<=9; gi2++){
+    if(!groups[gi2] || groups[gi2].length===0) continue;
+    html += '<tr style="background:#eff6ff">' +
+      '<td colspan="9" style="padding:5px 10px;font-size:12px;font-weight:700;color:#1e40af">' +
+      '── ' + rowLabel[gi2] + ' ──</td></tr>';
+    for(var ri=0; ri<groups[gi2].length; ri++){
+      var cu = groups[gi2][ri];
+      var cnt = 0;
+      for(var rr=0; rr<records.length; rr++){
+        if(records[rr].name===cu.name && records[rr].phone===cu.phone) cnt++;
+      }
+      html += '<tr>' +
+        '<td style="font-weight:500">' + cu.name + '</td>' +
+        '<td style="font-size:12px;color:#555">' + (cu.kana||'') + '</td>' +
+        '<td style="font-size:12px">' + (cu.phone||'') + '</td>' +
+        '<td style="font-size:12px;color:#888">' + (cu.zip||'') + '</td>' +
+        '<td style="font-size:12px;color:#555">' + (cu.addr||'') + '</td>' +
+        '<td style="font-size:11px;color:#888">' + (cu.license||'') + '</td>' +
+        '<td style="font-size:12px;color:#6366f1">' + (cu.memo||'') + '</td>' +
+        '<td style="text-align:center;font-weight:600;color:#1a56db">' + cnt + '回</td>' +
+        '<td class="no-print" style="white-space:nowrap">' +
+          '<button class="btn btn-sm" style="margin-right:4px" onclick="editCustomer(' + cu.id + ')">編集</button>' +
+          '<button class="btn btn-sm" style="color:#dc2626;border-color:#dc2626" onclick="deleteCustomer(' + cu.id + ')">削除</button>' +
+        '</td></tr>';
+    }
+  }
+  tbl.innerHTML = html;
+}
+
+function rebuildCustomerSelects(){
+  var opts = '<option value="">── 顧客から選択 ──</option>' +
+    customers.map(function(cust){
+      return '<option value="'+cust.id+'">'+(cust.kana?cust.kana+' / ':'')+cust.name+(cust.phone?' ('+cust.phone+')':'')+'</option>';
+    }).join('');
+  ['a-customer-select','f-customer-select'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) el.innerHTML = opts;
+  });
+}
+
+function applyCustomer(prefix){
+  var sel = document.getElementById(prefix+'-customer-select');
+  if(!sel || !sel.value) return;
+  var cust = customers.find(function(x){return x.id===parseInt(sel.value);});
+  if(!cust) return;
+  if(prefix==='a'){
+    document.getElementById('a-user-name').value  = cust.name;
+    document.getElementById('a-user-tel').value   = cust.phone||'';
+    document.getElementById('a-user-addr').value  = cust.addr||'';
+  } else {
+    document.getElementById('f-name').value    = cust.name;
+    document.getElementById('f-phone').value   = cust.phone||'';
+    document.getElementById('f-address').value = cust.addr||'';
+    var lic = document.getElementById('f-license');
+    if(lic) lic.value = cust.license||'';
+  }
+  sel.value = '';
+}
+
+function filterCustomerSuggest(prefix){
+  var inputId = prefix==='a' ? 'a-user-name' : 'f-name';
+  var selId   = prefix==='a' ? 'a-customer-select' : 'f-customer-select';
+  var val = document.getElementById(inputId).value.toLowerCase();
+  var sel = document.getElementById(selId);
+  if(!sel) return;
+  var filtered = val ? customers.filter(function(cust){
+    return cust.name.toLowerCase().indexOf(val)>=0 ||
+           (cust.kana&&cust.kana.toLowerCase().indexOf(val)>=0) ||
+           (cust.phone&&cust.phone.indexOf(val)>=0);
+  }) : customers;
+  sel.innerHTML = '<option value="">── 顧客から選択 ──</option>' +
+    filtered.map(function(cust){
+      return '<option value="'+cust.id+'">'+(cust.kana?cust.kana+' / ':'')+cust.name+(cust.phone?' ('+cust.phone+')':'')+'</option>';
+    }).join('');
+}
+
+function autoSaveCustomer(name, phone, addr, license){
+  if(!name) return;
+  var exists = customers.find(function(cust){ return cust.name===name && cust.phone===phone; });
+  if(!exists){
+    customers.push({id:custNextId++, name:name, kana:'', phone:phone||'', zip:'', addr:addr||'', license:license||'', memo:''});
+    rebuildCustomerSelects();
+  }
+}
+
+// ===== 郵便番号→住所 自動入力（zipcloud API）=====
+function handleZipInput(prefix){
+  var id = prefix==='c' ? 'c-zip' : null;
+  if(!id) return;
+  var val = document.getElementById(id).value.replace(/[^0-9]/g,'');
+  // 7桁になったら自動検索
+  if(val.length===7) lookupZip(prefix);
+}
+
+function lookupZip(prefix){
+  var zipEl  = document.getElementById('c-zip');
+  var addrEl = document.getElementById('c-addr');
+  if(!zipEl||!addrEl) return;
+  var zip = zipEl.value.replace(/[^0-9]/g,'');
+  if(zip.length!==7){ alert('郵便番号は7桁で入力してください（例：8200001）'); return; }
+  var url = 'https://zipcloud.ibsnet.co.jp/api/search?zipcode='+zip;
+  var script = document.createElement('script');
+  window._zipCallback = function(data){
+    document.body.removeChild(script);
+    delete window._zipCallback;
+    if(!data||!data.results||!data.results[0]){
+      alert('住所が見つかりませんでした。郵便番号を確認してください。');
+      return;
+    }
+    var r = data.results[0];
+    var addr = (r.address1||'')+(r.address2||'')+(r.address3||'');
+    addrEl.value = addr;
+    addrEl.focus();
+    var addr2El = document.getElementById('c-addr2');
+    if(addr2El) addr2El.focus();
+  };
+  script.src = url+'&callback=_zipCallback';
+  document.body.appendChild(script);
+}
+
+// ===== 月別印刷 =====
+function printMonthly(){
+  var years = [];
+  records.forEach(function(r){
+    var y = new Date(r.outDate).getFullYear();
+    if(years.indexOf(y)<0) years.push(y);
+  });
+  if(!years.length) years.push(new Date().getFullYear());
+  years.sort().reverse();
+  var ySel = document.getElementById('mp-year');
+  ySel.innerHTML = years.map(function(y){return '<option value="'+y+'">'+y+'年</option>';}).join('');
+  var mSel = document.getElementById('mp-month');
+  mSel.innerHTML = [1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){
+    return '<option value="'+m+'">'+m+'月</option>';
+  }).join('');
+  var curMonth = document.getElementById('filter-month').value;
+  if(curMonth && curMonth !== 'all'){
+    var parts = curMonth.split('-');
+    if(parts.length===2){ ySel.value=parts[0]; mSel.value=parseInt(parts[1]); }
+  } else {
+    mSel.value = new Date().getMonth()+1;
+  }
+  renderMonthlyPrint();
+  document.getElementById('monthly-print-overlay').style.display = 'block';
+}
+
+function closeMonthlyPrint(){
+  document.getElementById('monthly-print-overlay').style.display = 'none';
+}
+
+function renderMonthlyPrint(){
+  var year  = parseInt(document.getElementById('mp-year').value);
+  var month = parseInt(document.getElementById('mp-month').value);
+  var type  = document.getElementById('mp-type').value;
+  var pad   = function(n){return String(n).padStart(2,'0');};
+  var ym    = year+'-'+pad(month);
+  var filtered = records.filter(function(r){
+    if(r.outDate.substring(0,7)!==ym) return false;
+    if(type!=='all'&&r.type!==type) return false;
+    return true;
+  }).sort(function(a,b){return new Date(a.outDate)-new Date(b.outDate);});
+  document.getElementById('monthly-print-title').textContent = year+'年'+month+'月　貸渡実績一覧';
+  var total=filtered.length;
+  var totalFeeSum=filtered.reduce(function(s,r){return s+calcFee(r);},0);
+  var retCnt=filtered.filter(function(r){return r.status==='returned';}).length;
+  var outCnt=filtered.filter(function(r){return r.status==='out';}).length;
+  function typeLabel(t){return t==='accident'?'事故代車':t==='rental'?'レンタカー':'代車';}
+  function typeBg(t){return t==='accident'?'background:#fee2e2;color:#991b1b':t==='rental'?'background:#dbeafe;color:#1e40af':'background:#dcfce7;color:#166534';}
+  var rows = filtered.length ? filtered.map(function(r,i){
+    var v=getVehicle(r.type,r.vehicleId);
+    var km=(r.kmIn&&r.kmOut)?(r.kmIn-r.kmOut).toLocaleString()+'km':'—';
+    var fee=calcFee(r);
+    var days='';
+    if(r.outDate&&r.returnDate){var d=Math.ceil((new Date(r.returnDate)-new Date(r.outDate))/(1000*60*60*24))+1;days=Math.max(d,1)+'日';}
+    return '<tr style="'+(i%2?'background:#f9fafb':'')+'">'+
+      '<td style="text-align:center;color:#888;font-size:11px">'+(i+1)+'</td>'+
+      '<td style="font-size:12px;white-space:nowrap">'+r.outDate.replace('T',' ').slice(0,16)+'</td>'+
+      '<td style="font-size:12px;white-space:nowrap">'+(r.returnDate?r.returnDate.slice(0,10):'貸出中')+'</td>'+
+      '<td style="text-align:center;font-size:12px">'+days+'</td>'+
+      '<td><span class="badge" style="'+typeBg(r.type)+'">'+typeLabel(r.type)+'</span></td>'+
+      '<td style="font-size:12px">'+(v?v.model:'')+'</td>'+
+      '<td style="font-size:11px;color:#555">'+(v?v.plate:'')+'</td>'+
+      '<td style="font-size:12px">'+r.name+'</td>'+
+      '<td style="font-size:11px;color:#555">'+(r.insurer?r.insurer.replace('株式会社','㈱'):'—')+'</td>'+
+      '<td style="font-size:11px;color:#555">'+(r.caseNo||'—')+'</td>'+
+      '<td style="text-align:right;font-size:12px">'+km+'</td>'+
+      '<td style="text-align:right;font-size:12px;font-weight:500">'+(fee>0?'¥'+fee.toLocaleString():'—')+'</td>'+
+      '<td><span class="badge '+(r.status==='out'?'badge-out':'badge-in')+'">'+(r.status==='out'?'貸出中':'返却済')+'</span></td>'+
+    '</tr>';
+  }).join('') : '<tr><td colspan="13" class="empty">該当する貸渡記録がありません</td></tr>';
+
+  var html=
+    '<div class="mp-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1rem">'+
+      '<div class="stat"><div class="stat-num">'+total+'</div><div class="stat-label">総件数</div></div>'+
+      '<div class="stat"><div class="stat-num" style="color:#16a34a">'+retCnt+'</div><div class="stat-label">返却済</div></div>'+
+      '<div class="stat"><div class="stat-num" style="color:#b45309">'+outCnt+'</div><div class="stat-label">貸出中</div></div>'+
+      '<div class="stat"><div class="stat-num" style="font-size:16px">¥'+totalFeeSum.toLocaleString()+'</div><div class="stat-label">売上合計</div></div>'+
+    '</div>'+
+    '<div style="overflow-x:auto"><table style="font-size:12px;width:100%;border-collapse:collapse">'+
+    '<thead><tr style="background:#f0f4ff">'+
+      '<th style="padding:7px 6px;border-bottom:1px solid #d0d0d0;text-align:center">No</th>'+
+      '<th style="padding:7px 6px;border-bottom:1px solid #d0d0d0">貸出日時</th>'+
+      '<th style="padding:7px 6px;border-bottom:1px solid #d0d0d0">返却日</th>'+
+      '<th style="padding:7px 6px;border-bottom:1px solid #d0d0d0;text-align:center">日数</th>'+
+      '<th style="padding:7px 6px;border-bottom:1px solid #d0d0d0">区分</th>'+
+      '<th style="padding:7px 6px;border-bottom:1px solid #d0d0d0">車種</th>'+
+      '<th style="padding:7px 6px;border-bottom:1px solid #d0d0d0">登録番号</th>'+
+      '<th style="padding:7px 6px;border-bottom:1px solid #d0d0d0">利用者</th>'+
+      '<th style="padding:7px 6px;border-bottom:1px solid #d0d0d0">保険会社</th>'+
+      '<th style="padding:7px 6px;border-bottom:1px solid #d0d0d0">案件番号</th>'+
+      '<th style="padding:7px 6px;border-bottom:1px solid #d0d0d0;text-align:right">走行距離</th>'+
+      '<th style="padding:7px 6px;border-bottom:1px solid #d0d0d0;text-align:right">料金</th>'+
+      '<th style="padding:7px 6px;border-bottom:1px solid #d0d0d0">状態</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody>'+
+    '<tfoot><tr style="background:#eff6ff;font-weight:700">'+
+      '<td colspan="11" style="padding:7px 6px;border-top:1px solid #c0c0c0;text-align:right">合計</td>'+
+      '<td style="padding:7px 6px;border-top:1px solid #c0c0c0;text-align:right;color:#1a56db">'+(totalFeeSum>0?'¥'+totalFeeSum.toLocaleString():'—')+'</td>'+
+      '<td style="border-top:1px solid #c0c0c0"></td>'+
+    '</tr></tfoot></table></div>';
+  document.getElementById('monthly-print-content').innerHTML=html;
+}
+
+// ===== データ保存・読込（localStorage）=====
+var STORAGE_KEY = 'carstudio_data_v1';
+
+function saveAllData(){
+  try {
+    var data = {
+      vehicles:vehicles, records:records, customers:customers,
+      nextId:nextId, custNextId:custNextId, savedAt:new Date().toISOString()
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    var d=new Date();
+    var ts=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+
+           String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    updateSaveStatus('💾 ローカル保存済：'+ts);
+  } catch(e){ alert('ローカル保存に失敗しました。エラー：'+e.message); }
+}
+
+function loadAllData(){
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw){ alert('保存されたデータが見つかりません。'); return; }
+    var data = JSON.parse(raw);
+    if(!confirm('保存データを読み込みます。現在の内容は上書きされます。よろしいですか？')) return;
+    vehicles=data.vehicles||{rental:[],loaner:[]};
+    records=data.records||[];
+    customers=data.customers||[];
+    nextId=data.nextId||1;
+    custNextId=data.custNextId||1;
+    renderDashboard(); rebuildCustomerSelects();
+    alert('読み込みました。');
+  } catch(e){ alert('読込に失敗しました。エラー：'+e.message); }
+}
+
+function autoLoad(){
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return;
+    var data = JSON.parse(raw);
+    vehicles=data.vehicles||{rental:[],loaner:[]};
+    records=data.records||[];
+    customers=data.customers||[];
+    nextId=data.nextId||1;
+    custNextId=data.custNextId||1;
+    var d=new Date(data.savedAt);
+    var ts=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+
+           String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    updateSaveStatus('💾 ローカル読込済：'+ts);
+  } catch(e){ console.error('自動読込エラー:',e); }
+}
+
+function updateSaveStatus(msg){
+  var el = document.getElementById('save-status');
+  if(el) el.textContent = msg;
+}
+
+
+// ===== 貸渡編集 =====
+var editingRecordId = null;
+
+function editRecord(id){
+  var r = records.find(function(x){return x.id===id;});
+  if(!r) return;
+  editingRecordId = id;
+
+  // 区分・車両
+  document.getElementById('er-type').value    = r.type;
+  updateErVehicles();
+  document.getElementById('er-vehicle').value = r.vehicleId;
+  document.getElementById('er-status').value  = r.status;
+
+  // 保険・事故情報
+  document.getElementById('er-insurer').value    = r.insurer||'';
+  document.getElementById('er-dept').value       = r.dept||'';
+  document.getElementById('er-tanto').value      = r.tanto||'';
+  document.getElementById('er-ins-tel').value    = r.insTel||'';
+  document.getElementById('er-ins-fax').value    = r.insFax||'';
+  document.getElementById('er-case-no').value    = r.caseNo||'';
+  document.getElementById('er-acc-date').value   = r.accDate||'';
+  document.getElementById('er-contractor').value = r.contractor||'';
+  document.getElementById('er-policy-no').value  = r.policyNo||'';
+  document.getElementById('er-acc-car').value    = r.accCar||'';
+  document.getElementById('er-acc-plate').value  = r.accPlate||'';
+  document.getElementById('er-acc-frame').value  = r.accFrame||'';
+
+  // 利用者
+  document.getElementById('er-name').value    = r.name||'';
+  document.getElementById('er-phone').value   = r.phone||'';
+  document.getElementById('er-address').value = r.address||'';
+
+  // 日時
+  document.getElementById('er-out-date').value    = r.outDate||'';
+  document.getElementById('er-in-date').value     = r.inDate||'';
+  document.getElementById('er-return-date').value = r.returnDate||'';
+
+  // 走行距離・料金
+  document.getElementById('er-km-out').value  = r.kmOut||'';
+  document.getElementById('er-km-in').value   = r.kmIn||'';
+  document.getElementById('er-note').value    = r.note||'';
+  document.getElementById('er-day-fee').value = r.dayFee||'';
+  document.getElementById('er-fee').value     = r.fee||'';
+
+  document.getElementById('record-edit-overlay').style.display = 'block';
+}
+
+function updateErVehicles(){
+  var type = document.getElementById('er-type').value;
+  var vList = type==='loaner' ? vehicles.loaner : vehicles.rental;
+  var sel = document.getElementById('er-vehicle');
+  sel.innerHTML = vList.map(function(v){
+    return '<option value="'+v.id+'">'+v.model+'（'+v.plate+'）</option>';
+  }).join('');
+}
+
+function saveEditRecord(){
+  var r = records.find(function(x){return x.id===editingRecordId;});
+  if(!r){ alert('記録が見つかりません'); return; }
+
+  r.type       = document.getElementById('er-type').value;
+  r.vehicleId  = document.getElementById('er-vehicle').value;
+  r.status     = document.getElementById('er-status').value;
+  r.insurer    = document.getElementById('er-insurer').value;
+  r.dept       = document.getElementById('er-dept').value;
+  r.tanto      = document.getElementById('er-tanto').value;
+  r.insTel     = document.getElementById('er-ins-tel').value;
+  r.insFax     = document.getElementById('er-ins-fax').value;
+  r.caseNo     = document.getElementById('er-case-no').value;
+  r.accDate    = document.getElementById('er-acc-date').value;
+  r.contractor = document.getElementById('er-contractor').value;
+  r.policyNo   = document.getElementById('er-policy-no').value;
+  r.accCar     = document.getElementById('er-acc-car').value;
+  r.accPlate   = document.getElementById('er-acc-plate').value;
+  r.accFrame   = document.getElementById('er-acc-frame').value;
+  r.name       = document.getElementById('er-name').value;
+  r.phone      = document.getElementById('er-phone').value;
+  r.address    = document.getElementById('er-address').value;
+  r.outDate    = document.getElementById('er-out-date').value;
+  r.inDate     = document.getElementById('er-in-date').value;
+  r.returnDate = document.getElementById('er-return-date').value || null;
+  r.kmOut      = parseInt(document.getElementById('er-km-out').value)||0;
+  r.kmIn       = document.getElementById('er-km-in').value ? parseInt(document.getElementById('er-km-in').value) : null;
+  r.note       = document.getElementById('er-note').value;
+  r.dayFee     = parseInt(document.getElementById('er-day-fee').value)||0;
+  r.fee        = parseInt(document.getElementById('er-fee').value)||0;
+
+  saveAllData();
+  closeEditRecord();
+  renderRecords();
+  alert('保存しました。');
+}
+
+function deleteRecord(){
+  var r = records.find(function(x){return x.id===editingRecordId;});
+  if(!r) return;
+  if(!confirm(r.name+'さんの貸渡記録（'+r.outDate.split('T')[0]+'）を削除しますか？\nこの操作は元に戻せません。')) return;
+  records = records.filter(function(x){return x.id!==editingRecordId;});
+  saveAllData();
+  closeEditRecord();
+  renderRecords();
+  alert('削除しました。');
+}
+
+function closeEditRecord(){
+  document.getElementById('record-edit-overlay').style.display = 'none';
+  editingRecordId = null;
+}
+
+
+function exportCSV(){
+  var hdr=['ID','貸出日時','返却日時','区分','車種','車両番号','利用者','電話','住所','保険会社','担当者','案件番号','事故日','契約者','事故車種','事故登録番号','出発km','帰着km','走行距離km','日額','料金','備考','状態'];
+  var rows=[hdr];
+  records.forEach(function(r){
+    var v=getVehicle(r.type,r.vehicleId);
+    var fee=calcFee(r);
+    var km=r.kmIn?(r.kmIn-r.kmOut):'';
+    rows.push([r.id,r.outDate,r.returnDate||'',r.type,
+      v?v.model:'',v?v.plate:'',r.name,r.phone||'',r.address||'',
+      r.insurer||'',r.tanto||'',r.caseNo||'',r.accDate||'',
+      r.contractor||'',r.accCar||'',r.accPlate||'',
+      r.kmOut,r.kmIn||'',km,r.dayFee||'',fee,r.note||'',
+      r.status==='out'?'貸出中':'返却済']);
+  });
+  var lines=rows.map(function(row){
+    return row.map(function(cell){
+      var s=String(cell).replace(/"/g,'""');
+      return '"'+s+'"';
+    }).join(',');
+  });
+  var csv=lines.join('\n');
+  var bom='\uFEFF';
+  var blob=new Blob([bom+csv],{type:'text/csv;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;
+  a.download='貸渡実績_'+new Date().getFullYear()+'.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+autoLoad();
+renderDashboard();
+buildAccVehicleList();
+setAccDates();
+updateRentalVehicleList();
+setRentalDates();
+</script>
+
+<script type="module">
+import { initializeApp }    from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyCrTM5cvgaec7haR7Jjq3ClNJweTBohUYo",
+  authDomain: "rentalsystem-dome.firebaseapp.com",
+  projectId: "rentalsystem-dome",
+  storageBucket: "rentalsystem-dome.firebasestorage.app",
+  messagingSenderId: "196280620979",
+  appId: "1:196280620979:web:803927abc480ef84511dc6"
+};
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+var ACCESS_CODE = null;
+function getAccessCode(){
+  if(ACCESS_CODE) return ACCESS_CODE;
+  var code = localStorage.getItem('carstudio_access_code');
+  if(code){ ACCESS_CODE=code; return code; }
+  code = prompt('アクセスコードを入力してください');
+  if(!code) return null;
+  localStorage.setItem('carstudio_access_code', code);
+  ACCESS_CODE = code;
+  return code;
+}
+window.saveToFirebase = async function(){
+  var code = getAccessCode();
+  if(!code){ alert('アクセスコードが必要です'); return; }
+  try {
+    updateSaveStatus('保存中…');
+    var data = { vehicles:vehicles, records:records, customers:customers, nextId:nextId, custNextId:custNextId, savedAt:new Date().toISOString() };
+    await setDoc(doc(db,'carstudio',code), data);
+    var d=new Date(), ts=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    updateSaveStatus('☁️ クラウド保存済：'+ts);
+    saveAllData();
+    alert('クラウドに保存しました（'+ts+'）');
+  } catch(e){ updateSaveStatus('保存失敗'); alert('クラウド保存に失敗しました。エラー：'+e.message); }
+};
+window.loadFromFirebase = async function(){
+  var code = getAccessCode();
+  if(!code){ alert('アクセスコードが必要です'); return; }
+  try {
+    updateSaveStatus('読込中…');
+    var snap = await getDoc(doc(db,'carstudio',code));
+    if(!snap.exists()){ alert('このアクセスコードのデータが見つかりません。先にクラウド保存を行ってください。'); updateSaveStatus(''); return; }
+    var data = snap.data();
+    var d=new Date(data.savedAt), ts=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    if(!confirm('クラウドのデータを読み込みます。保存日時：'+ts+'\n現在の入力内容は上書きされます。よろしいですか？')){ updateSaveStatus(''); return; }
+    vehicles=data.vehicles||{rental:[],loaner:[]}; records=data.records||[]; customers=data.customers||[];
+    nextId=data.nextId||1; custNextId=data.custNextId||1;
+    updateSaveStatus('☁️ クラウド読込済：'+ts);
+    renderDashboard(); rebuildCustomerSelects();
+    alert('クラウドからデータを読み込みました（'+ts+'）');
+  } catch(e){ updateSaveStatus('読込失敗'); alert('クラウド読込に失敗しました。エラー：'+e.message); }
+};
+window.addEventListener('load', async function(){
+  var code = localStorage.getItem('carstudio_access_code');
+  if(!code) return;
+  ACCESS_CODE = code;
+  try {
+    updateSaveStatus('クラウド読込中…');
+    var snap = await getDoc(doc(db,'carstudio',code));
+    if(!snap.exists()){ updateSaveStatus(''); return; }
+    var data = snap.data();
+    vehicles=data.vehicles||{rental:[],loaner:[]}; records=data.records||[]; customers=data.customers||[];
+    nextId=data.nextId||1; custNextId=data.custNextId||1;
+    var d=new Date(data.savedAt), ts=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    updateSaveStatus('☁️ 自動読込済：'+ts);
+    renderDashboard(); rebuildCustomerSelects();
+  } catch(e){ updateSaveStatus('自動読込失敗'); console.error(e); }
+});
+</script>
+</body>
+</html>
