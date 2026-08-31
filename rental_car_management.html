@@ -133,6 +133,7 @@ body.print-invoice-only .annai-wrap-doc{display:none!important}
   <button class="tab" onclick="showTab('report')" id="tab-report">年次報告</button>
   <button class="tab" onclick="showTab('customers')" id="tab-customers">👤 顧客管理</button>
   <button class="tab" onclick="showTab('export')" id="tab-export">📋 国交省転記データ</button>
+  <button class="tab" onclick="showTab('settings')" id="tab-settings">⚙️ 設定</button>
 </div>
 
 <!-- ダッシュボード -->
@@ -297,7 +298,7 @@ body.print-invoice-only .annai-wrap-doc{display:none!important}
   </div>
   <div class="card" style="padding:0;overflow-x:auto">
     <table>
-      <thead><tr><th>貸出日時</th><th>車両</th><th>区分</th><th>利用者</th><th>保険会社</th><th>案件番号</th><th>走行距離</th><th>料金</th><th>返却日時</th><th>状態</th><th class="no-print">操作</th></tr></thead>
+      <thead><tr><th>貸出日時</th><th>車両</th><th>区分</th><th>利用者</th><th>保険会社</th><th>案件番号</th><th>走行距離</th><th>料金</th><th>返却日時</th><th>状態</th><th>入金</th><th class="no-print">操作</th></tr></thead>
       <tbody id="records-table"></tbody>
     </table>
   </div>
@@ -666,16 +667,59 @@ body.print-invoice-only .annai-wrap-doc{display:none!important}
       <div class="field"><label>備考</label><input type="text" id="er-note"></div>
     </div>
 
-    <div class="section-label">■ 料金</div>
+    <div class="section-label">■ 料金・入金</div>
     <div class="grid3" style="margin-bottom:1rem">
       <div class="field"><label>日額（円・事故代車）</label><input type="number" id="er-day-fee"></div>
       <div class="field"><label>料金（円・通常）</label><input type="number" id="er-fee"></div>
+      <div class="field"><label>入金状況</label>
+        <select id="er-payment">
+          <option value="unpaid">未入金</option>
+          <option value="paid">入金済</option>
+          <option value="insurance">保険会社請求中</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid3" style="margin-bottom:1rem">
+      <div class="field"><label>入金日</label><input type="date" id="er-payment-date"></div>
+      <div class="field"><label>入金額（円）</label><input type="number" id="er-payment-amount"></div>
+      <div class="field"><label>入金メモ</label><input type="text" id="er-payment-note" placeholder="振込・現金 等"></div>
     </div>
 
     <div class="flex">
       <button class="btn btn-primary" onclick="saveEditRecord()">✔ 保存する</button>
       <button class="btn" style="color:#dc2626;border-color:#dc2626" onclick="deleteRecord()">🗑 この貸渡を削除</button>
       <button class="btn" onclick="closeEditRecord()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- 設定 -->
+<div id="section-settings" class="section">
+  <div class="section-header">
+    <h2>店舗情報設定</h2>
+    <div class="flex no-print">
+      <button class="btn btn-primary" onclick="saveSettings()">✔ 保存する</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">■ 店舗・発行元情報（利用案内・請求書に印刷されます）</div>
+    <div class="grid3">
+      <div class="field"><label>店舗名</label><input type="text" id="s-name" placeholder="CarstudioDome"></div>
+      <div class="field"><label>担当者名</label><input type="text" id="s-tanto" placeholder="大道百合"></div>
+      <div class="field"><label>住所</label><input type="text" id="s-addr" placeholder="福岡県嘉麻市山野631-5"></div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label>TEL</label><input type="tel" id="s-tel" placeholder="0948-80-4181"></div>
+      <div class="field"><label>FAX</label><input type="text" id="s-fax" placeholder="0948-80-4180"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="card-title">■ 振込口座情報（請求書に印刷されます）</div>
+    <div class="grid2">
+      <div class="field"><label>銀行名・支店名</label><input type="text" id="s-bank1" placeholder="飯塚信用金庫　菰田支店"></div>
+      <div class="field"><label>口座種別・番号</label><input type="text" id="s-bank2" placeholder="普通預金　1173406"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>口座名義</label><input type="text" id="s-bank3" placeholder="ｶｰｽﾀｼﾞｵﾄﾞｰﾑ　ﾀﾅｶﾏﾓﾙ"></div>
     </div>
   </div>
 </div>
@@ -728,6 +772,7 @@ function showTab(tab){
   if(tab==='report') renderReport();
   if(tab==='new-accident'){buildAccVehicleList();setAccDates();}
   if(tab==='export') renderExport();
+  if(tab==='settings') loadSettings();
   if(tab==='customers'){renderCustomers();rebuildCustomerSelects();setupNameInput();}
   if(tab==='new-rental'){updateRentalVehicleList();setRentalDates();}
 }
@@ -951,6 +996,7 @@ function renderRecords(){
       '<td style="font-size:12px">'+(fee>0?'¥'+fee.toLocaleString():'—')+'</td>'+
       '<td style="font-size:11px;white-space:nowrap">'+(r.returnDate?r.returnDate.replace('T',' '):'—')+'</td>'+
       '<td><span class="badge '+(r.status==='out'?'badge-out':'badge-in')+'">'+(r.status==='out'?'貸出中':'返却済')+'</span></td>'+
+      '<td>'+paymentBadge(r)+'</td>'+
       '<td class="no-print" style="white-space:nowrap">'+
         '<button class="btn btn-sm" style="margin-right:4px" onclick="showAnnai('+r.id+')">利用案内</button>'+
         '<button class="btn btn-sm" style="margin-right:4px;color:#0891b2;border-color:#0891b2" onclick="editRecord('+r.id+')">編集</button>'+
@@ -1890,7 +1936,7 @@ function saveAllData(){
   try {
     var data = {
       vehicles:vehicles, records:records, customers:customers,
-      nextId:nextId, custNextId:custNextId, savedAt:new Date().toISOString()
+      nextId:nextId, custNextId:custNextId, shop:SHOP, savedAt:new Date().toISOString()
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     var d=new Date();
@@ -1926,6 +1972,7 @@ function autoLoad(){
     customers=data.customers||[];
     nextId=data.nextId||1;
     custNextId=data.custNextId||1;
+    if(data.shop) SHOP=data.shop;
     var d=new Date(data.savedAt);
     var ts=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+
            String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
@@ -1984,6 +2031,12 @@ function editRecord(id){
   document.getElementById('er-day-fee').value = r.dayFee||'';
   document.getElementById('er-fee').value     = r.fee||'';
 
+  // 入金情報
+  document.getElementById('er-payment').value        = r.payment||'unpaid';
+  document.getElementById('er-payment-date').value   = r.paymentDate||'';
+  document.getElementById('er-payment-amount').value = r.paymentAmount||'';
+  document.getElementById('er-payment-note').value   = r.paymentNote||'';
+
   document.getElementById('record-edit-overlay').style.display = 'block';
 }
 
@@ -2023,9 +2076,13 @@ function saveEditRecord(){
   r.returnDate = document.getElementById('er-return-date').value || null;
   r.kmOut      = parseInt(document.getElementById('er-km-out').value)||0;
   r.kmIn       = document.getElementById('er-km-in').value ? parseInt(document.getElementById('er-km-in').value) : null;
-  r.note       = document.getElementById('er-note').value;
-  r.dayFee     = parseInt(document.getElementById('er-day-fee').value)||0;
-  r.fee        = parseInt(document.getElementById('er-fee').value)||0;
+  r.note          = document.getElementById('er-note').value;
+  r.dayFee        = parseInt(document.getElementById('er-day-fee').value)||0;
+  r.fee           = parseInt(document.getElementById('er-fee').value)||0;
+  r.payment       = document.getElementById('er-payment').value;
+  r.paymentDate   = document.getElementById('er-payment-date').value;
+  r.paymentAmount = parseInt(document.getElementById('er-payment-amount').value)||0;
+  r.paymentNote   = document.getElementById('er-payment-note').value;
 
   saveAllData();
   closeEditRecord();
@@ -2047,6 +2104,47 @@ function deleteRecord(){
 function closeEditRecord(){
   document.getElementById('record-edit-overlay').style.display = 'none';
   editingRecordId = null;
+}
+
+
+// ===== 設定 =====
+function loadSettings(){
+  document.getElementById('s-name').value  = SHOP.name||'';
+  document.getElementById('s-tanto').value = SHOP.tanto||'';
+  document.getElementById('s-addr').value  = SHOP.addr||'';
+  document.getElementById('s-tel').value   = SHOP.tel||'';
+  document.getElementById('s-fax').value   = SHOP.fax||'';
+  // 口座情報を分解
+  var bank = SHOP.bank||'';
+  var lines = bank.split('\n');
+  var line1 = lines[0]||'';
+  // 銀行名・支店名 と 口座種別・番号を分離（全角スペースで分割）
+  var parts = line1.split(/\s{2,}|　/);
+  document.getElementById('s-bank1').value = (parts[0]||'')+(parts[1]?'　'+parts[1]:'');
+  document.getElementById('s-bank2').value = (parts[2]||'')+(parts[3]?'　'+parts[3]:'');
+  document.getElementById('s-bank3').value = lines[1]||'';
+}
+
+function saveSettings(){
+  SHOP.name  = document.getElementById('s-name').value.trim();
+  SHOP.tanto = document.getElementById('s-tanto').value.trim();
+  SHOP.addr  = document.getElementById('s-addr').value.trim();
+  SHOP.tel   = document.getElementById('s-tel').value.trim();
+  SHOP.fax   = document.getElementById('s-fax').value.trim();
+  var b1 = document.getElementById('s-bank1').value.trim();
+  var b2 = document.getElementById('s-bank2').value.trim();
+  var b3 = document.getElementById('s-bank3').value.trim();
+  SHOP.bank = b1+(b2?'　'+b2:'')+( b3?'\n'+b3:'');
+  saveAllData();
+  alert('設定を保存しました。');
+}
+
+// ===== 入金バッジ =====
+function paymentBadge(r){
+  var p = r.payment||'unpaid';
+  if(p==='paid')       return '<span class="badge" style="background:#dcfce7;color:#166534">入金済</span>';
+  if(p==='insurance')  return '<span class="badge" style="background:#dbeafe;color:#1e40af">保険請求中</span>';
+  return '<span class="badge" style="background:#fee2e2;color:#991b1b">未入金</span>';
 }
 
 
@@ -2118,7 +2216,7 @@ window.saveToFirebase = async function(){
   if(!code){ alert('アクセスコードが必要です'); return; }
   try {
     updateSaveStatus('保存中…');
-    var data = { vehicles:vehicles, records:records, customers:customers, nextId:nextId, custNextId:custNextId, savedAt:new Date().toISOString() };
+    var data = { vehicles:vehicles, records:records, customers:customers, nextId:nextId, custNextId:custNextId, shop:SHOP, savedAt:new Date().toISOString() };
     await setDoc(doc(db,'carstudio',code), data);
     var d=new Date(), ts=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
     updateSaveStatus('☁️ クラウド保存済：'+ts);
@@ -2137,7 +2235,7 @@ window.loadFromFirebase = async function(){
     var d=new Date(data.savedAt), ts=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
     if(!confirm('クラウドのデータを読み込みます。保存日時：'+ts+'\n現在の入力内容は上書きされます。よろしいですか？')){ updateSaveStatus(''); return; }
     vehicles=data.vehicles||{rental:[],loaner:[]}; records=data.records||[]; customers=data.customers||[];
-    nextId=data.nextId||1; custNextId=data.custNextId||1;
+    nextId=data.nextId||1; custNextId=data.custNextId||1; if(data.shop) SHOP=data.shop;
     updateSaveStatus('☁️ クラウド読込済：'+ts);
     renderDashboard(); rebuildCustomerSelects(); if(typeof renderCustomers==='function') renderCustomers();
     alert('クラウドからデータを読み込みました（'+ts+'）');
@@ -2153,7 +2251,7 @@ window.addEventListener('load', async function(){
     if(!snap.exists()){ updateSaveStatus(''); return; }
     var data = snap.data();
     vehicles=data.vehicles||{rental:[],loaner:[]}; records=data.records||[]; customers=data.customers||[];
-    nextId=data.nextId||1; custNextId=data.custNextId||1;
+    nextId=data.nextId||1; custNextId=data.custNextId||1; if(data.shop) SHOP=data.shop;
     var d=new Date(data.savedAt), ts=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
     updateSaveStatus('☁️ 自動読込済：'+ts);
     renderDashboard(); rebuildCustomerSelects(); if(typeof renderCustomers==='function') renderCustomers();
