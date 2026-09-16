@@ -1051,15 +1051,16 @@ function buildDocHtml(r, docType){
   var today = new Date();
   var todayStr = today.getFullYear()+'年'+(today.getMonth()+1)+'月'+today.getDate()+'日';
 
-  // 返却日・日数・金額計算
+  // 返却日・日数・金額計算（実返却日 → 返却予定日の順で使用）
   var retDate = r.returnDate ? r.returnDate.split('T')[0] : (r.inDate ? r.inDate.split('T')[0] : '');
   var days = 0;
   if(r.outDate && retDate){
     days = Math.ceil((new Date(retDate) - new Date(r.outDate.split('T')[0])) / (1000*60*60*24)) + 1;
     if(days < 1) days = 1;
   }
-  var unitFee = r.dayFee > 0 ? r.dayFee : (days > 0 && r.fee > 0 ? Math.round(r.fee/days) : r.fee);
-  var totalFee = r.dayFee > 0 && days > 0 ? r.dayFee * days : r.fee;
+  // 料金計算：上書き料金(r.fee) → 日額×日数(r.dayFee) の順で優先
+  var unitFee   = r.dayFee > 0 ? r.dayFee : (days > 0 && r.fee > 0 ? Math.round(r.fee/days) : r.fee);
+  var totalFee  = r.fee > 0 ? r.fee : (r.dayFee > 0 && days > 0 ? r.dayFee * days : 0);
   // 税抜・消費税（税込前提のため逆算）
   var taxRate = 0.10;
   var feeExTax = Math.round(totalFee / (1+taxRate));
