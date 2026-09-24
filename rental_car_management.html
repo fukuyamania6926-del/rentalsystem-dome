@@ -70,6 +70,7 @@ tr:last-child td{border-bottom:none}
   .header{display:none!important}
   .app{padding:0;max-width:100%}
   .annai-wrap{page-break-after:always;border:none!important}
+  .invoice-wrap .inv-amount-box{border:2px solid #000!important}
   .print-only{display:block!important}
   .print-hide{display:none!important}
 }
@@ -722,6 +723,7 @@ body.print-invoice-only .annai-wrap-doc{display:none!important}
     <div class="grid3">
       <div class="field"><label>TEL</label><input type="tel" id="s-tel" placeholder="0948-80-4181"></div>
       <div class="field"><label>FAX</label><input type="text" id="s-fax" placeholder="0948-80-4180"></div>
+      <div class="field"><label>インボイス登録番号</label><input type="text" id="s-regno" placeholder="T2810053128134"></div>
     </div>
     <div class="divider"></div>
     <div class="card-title">■ 振込口座情報（請求書に印刷されます）</div>
@@ -743,7 +745,8 @@ var SHOP = {
   addr: '福岡県嘉麻市山野631-5',
   tel: '0948-80-4181',
   fax: '0948-80-4180',
-  bank: '○○銀行 ○○支店 普通 0000000\n口座名義：カースタジオドーム'
+  bank: '飯塚信用金庫（銀行コード1910）\n菰田支店（店番002）\n普通　1173406\n口座名義：カースタジオドーム　タナカマモル',
+  regno: 'T2810053128134'
 };
 
 var vehicles = {
@@ -1048,126 +1051,176 @@ function setPrintMode(mode){
 
 function buildDocHtml(r, docType){
   var v = getVehicle(r.type, r.vehicleId);
-  var today = new Date();
-  var todayStr = today.getFullYear()+'年'+(today.getMonth()+1)+'月'+today.getDate()+'日';
 
-  // 返却日・日数・金額計算（実返却日 → 返却予定日の順で使用）
+  // 発行日
+  var issueDateEl = document.getElementById('doc-issue-date');
+  var issueDate   = issueDateEl && issueDateEl.value ? new Date(issueDateEl.value) : new Date();
+  var todayStr    = issueDate.getFullYear()+'年'+(issueDate.getMonth()+1)+'月'+issueDate.getDate()+'日';
+
+  // 返却日・日数・金額計算
   var retDate = r.returnDate ? r.returnDate.split('T')[0] : (r.inDate ? r.inDate.split('T')[0] : '');
   var days = 0;
   if(r.outDate && retDate){
     days = Math.ceil((new Date(retDate) - new Date(r.outDate.split('T')[0])) / (1000*60*60*24)) + 1;
     if(days < 1) days = 1;
   }
-  // 料金計算：上書き料金(r.fee) → 日額×日数(r.dayFee) の順で優先
-  var unitFee   = r.dayFee > 0 ? r.dayFee : (days > 0 && r.fee > 0 ? Math.round(r.fee/days) : r.fee);
-  var totalFee  = r.fee > 0 ? r.fee : (r.dayFee > 0 && days > 0 ? r.dayFee * days : 0);
-  // 税抜・消費税（税込前提のため逆算）
-  var taxRate = 0.10;
-  var feeExTax = Math.round(totalFee / (1+taxRate));
-  var tax = totalFee - feeExTax;
+  var unitFee  = r.dayFee > 0 ? r.dayFee : (days > 0 && r.fee > 0 ? Math.round(r.fee/days) : r.fee);
+  var totalFee = r.fee > 0 ? r.fee : (r.dayFee > 0 && days > 0 ? r.dayFee * days : 0);
+  // 消費税計算（税込→逆算）
+  var taxRate   = 0.10;
+  var feeExTax  = Math.round(totalFee / (1+taxRate));
+  var tax       = totalFee - feeExTax;
 
-  var isInvoice = docType === 'invoice';
-  var title = isInvoice ? '請　求　書' : 'ご利用案内';
-  var wrapClass = isInvoice ? 'invoice-wrap annai-wrap' : 'annai-wrap-doc annai-wrap';
+  var isInvoice   = docType === 'invoice';
+  var wrapClass   = isInvoice ? 'invoice-wrap annai-wrap' : 'annai-wrap-doc annai-wrap';
 
   var html = '<div class="'+wrapClass+'">';
-  html += '<div class="annai-title">'+title+'</div>';
-  html += '<div class="annai-date">'+todayStr+'</div>';
 
-  // ヘッダー（宛先＋発行元）
-  html += '<div class="annai-header">';
-  html += '<div class="annai-from">';
-  if(r.insurer){
-    html += '<div class="company">'+r.insurer+'</div>';
-    if(r.dept) html += '<div class="company">'+r.dept+'</div>';
-    html += '<div class="tant" style="margin-top:8px">担当者　'+r.tanto+' 様</div>';
-    if(r.insTel) html += '<div>TEL：'+r.insTel+'</div>';
-    if(r.insFax) html += '<div>FAX：'+r.insFax+'</div>';
-  } else {
-    html += '<div class="tant">'+r.name+' 様</div>';
-  }
-  html += '</div>';
-  html += '<div class="annai-to">';
-  html += '<div class="shop-name">'+SHOP.name+'</div>';
-  html += '<div>担当者　'+SHOP.tanto+'</div>';
-  html += '<div>'+SHOP.addr+'</div>';
-  html += '<div>TEL：'+SHOP.tel+'</div>';
-  html += '<div>FAX：'+SHOP.fax+'</div>';
-  html += '</div></div>';
+  if(isInvoice){
+    // ===== 請求書レイアウト =====
+    html += '<div style="text-align:center;font-size:26px;font-weight:400;letter-spacing:6px;margin-bottom:16px">請　求　書</div>';
+    html += '<div style="text-align:right;font-size:12px;margin-bottom:12px">'+todayStr+'</div>';
 
-  // 事故・契約情報テーブル
-  html += '<table class="annai-table">';
-  if(r.caseNo) html += '<tr><td class="lbl">案件番号</td><td>'+r.caseNo+'</td></tr>';
-  if(r.accDate){
-    var ad = r.accDate.split('-');
-    html += '<tr><td class="lbl">事故・故障日</td><td>'+ad[0]+'年'+parseInt(ad[1])+'月'+parseInt(ad[2])+'日</td></tr>';
-  }
-  if(r.contractor || r.accCar){
-    var ci = '';
-    if(r.contractor) ci += '氏　名：'+r.contractor+' 様<br>';
-    if(r.policyNo)   ci += '証券番号：'+r.policyNo+'<br>';
-    if(r.accCar)     ci += '車　名：'+r.accCar+'<br>';
-    if(r.accPlate)   ci += '登録番号：'+r.accPlate+'<br>';
-    if(r.accFrame)   ci += '車体番号：'+r.accFrame;
-    html += '<tr><td class="lbl">保険契約者</td><td>'+ci+'</td></tr>';
-  }
-  html += '<tr><td class="lbl">レンタカー利用者</td><td>'+r.name+' 様'+(r.phone?'<br>連絡先：'+r.phone:'')+'</td></tr>';
-  html += '</table>';
+    // ヘッダー（宛先＋発行元）
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:16px">';
+    // 宛先
+    html += '<div style="font-size:13px">';
+    if(r.insurer){
+      html += '<div style="font-size:15px;font-weight:700;line-height:1.6">'+r.insurer+'</div>';
+      if(r.dept) html += '<div style="font-size:15px;font-weight:700;line-height:1.6">'+r.dept+'</div>';
+      html += '<div style="font-weight:700;margin-top:6px">担当者　'+r.tanto+' 様</div>';
+      if(r.insTel) html += '<div>TEL：'+r.insTel+'</div>';
+      if(r.insFax) html += '<div>FAX：'+r.insFax+'</div>';
+    } else {
+      html += '<div style="font-weight:700">'+r.name+' 様</div>';
+    }
+    html += '</div>';
+    // 発行元
+    html += '<div style="text-align:right;font-size:12px">';
+    html += '<div style="font-size:16px;font-weight:700;font-family:Arial,sans-serif;margin-bottom:4px">'+SHOP.name+'</div>';
+    html += '<div>担当者　'+SHOP.tanto+'</div>';
+    html += '<div>'+SHOP.addr+'</div>';
+    html += '<div>TEL：'+SHOP.tel+'</div>';
+    html += '<div>FAX：'+SHOP.fax+'</div>';
+    if(SHOP.regno) html += '<div>登録番号：'+SHOP.regno+'</div>';
+    html += '</div></div>';
 
-  // 車両・期間ボックス
-  html += '<div class="annai-box">';
-  if(v){
-    html += '<div class="annai-box-row"><div class="annai-box-lbl">ご利用レンタカー</div><div class="annai-box-val">'+v.model+(v.year?'（年式：'+v.year+'）':'')+'<br>登録番号：'+v.plate+'</div></div>';
-  }
-  html += '<div class="annai-box-row"><div class="annai-box-lbl">利用開始日時</div><div class="annai-box-val">'+r.outDate.replace('T',' ')+':00</div></div>';
-  // 返却日は請求書のみ表示
-  if(retDate && isInvoice){
-    html += '<div class="annai-box-row"><div class="annai-box-lbl">返却日</div><div class="annai-box-val">'+retDate+(days>0?' （'+days+'日間）':'')+'</div></div>';
-  }
-  html += '</div>';
+    // 御請求金額ボックス
+    html += '<div class="inv-amount-box" style="border:2px solid #333;display:flex;align-items:center;padding:10px 18px;margin-bottom:18px;gap:24px">';
+    html += '<div style="font-size:14px;font-weight:700;white-space:nowrap">御請求金額</div>';
+    html += '<div style="font-size:28px;font-weight:700;color:#000">¥'+totalFee.toLocaleString()+'<span style="font-size:14px;font-weight:400">（税込）</span></div>';
+    html += '</div>';
 
-  // 請求書の場合：料金明細テーブルを追加
-  if(isInvoice && totalFee > 0){
-    html += '<div style="margin-top:12px">';
-    html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
-    html += '<thead><tr style="background:#f0f4ff">';
-    html += '<th style="border:1px solid #ccc;padding:7px 10px;text-align:left">項目</th>';
-    html += '<th style="border:1px solid #ccc;padding:7px 10px;text-align:right">日数</th>';
-    html += '<th style="border:1px solid #ccc;padding:7px 10px;text-align:right">日額（税込）</th>';
-    html += '<th style="border:1px solid #ccc;padding:7px 10px;text-align:right">金額（税込）</th>';
+    // 事故・契約情報テーブル
+    html += '<table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:13px">';
+    if(r.caseNo) html += '<tr><td style="font-weight:700;padding:5px 8px;border-bottom:1px solid #ccc;width:130px">案件番号</td><td style="padding:5px 8px;border-bottom:1px solid #ccc">'+r.caseNo+'</td></tr>';
+    if(r.contractor||r.accCar){
+      var ci='';
+      if(r.contractor) ci+='氏　名：'+r.contractor+' 様';
+      if(r.accCar) ci+='<br>車　名：'+r.accCar;
+      if(r.accPlate) ci+='<br>登録番号：'+r.accPlate;
+      html += '<tr><td style="font-weight:700;padding:5px 8px;border-bottom:1px solid #ccc">保険契約者</td><td style="padding:5px 8px;border-bottom:1px solid #ccc">'+ci+'</td></tr>';
+    }
+    html += '<tr><td style="font-weight:700;padding:5px 8px;border-bottom:1px solid #ccc">レンタカー利用者</td><td style="padding:5px 8px;border-bottom:1px solid #ccc">'+r.name+' 様'+(r.address?'<br>'+r.address:'')+(r.phone?'<br>連絡先：'+r.phone:'')+'</td></tr>';
+    if(v) html += '<tr><td style="font-weight:700;padding:5px 8px;border-bottom:1px solid #ccc">ご利用レンタカー</td><td style="padding:5px 8px;border-bottom:1px solid #ccc">'+v.model+(v.year?'（年式：'+v.year+'）':'')+' 登録番号：'+v.plate+'</td></tr>';
+    if(r.outDate) html += '<tr><td style="font-weight:700;padding:5px 8px;border-bottom:1px solid #ccc">レンタカー貸渡日</td><td style="padding:5px 8px;border-bottom:1px solid #ccc">'+r.outDate.replace('T',' ')+':00</td></tr>';
+    if(retDate)   html += '<tr><td style="font-weight:700;padding:5px 8px;border-bottom:1px solid #ccc">レンタカー返却日</td><td style="padding:5px 8px;border-bottom:1px solid #ccc">'+retDate+(r.returnDate?' '+r.returnDate.split('T')[1]+':00':'')+'</td></tr>';
+    html += '</table>';
+
+    // 明細テーブル
+    html += '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px">';
+    html += '<thead><tr style="background:#f0f0f0">';
+    html += '<th style="border:1px solid #999;padding:6px 8px;text-align:left">内容</th>';
+    html += '<th style="border:1px solid #999;padding:6px 8px;text-align:center;width:60px">非課税</th>';
+    html += '<th style="border:1px solid #999;padding:6px 8px;text-align:right;width:90px">単価</th>';
+    html += '<th style="border:1px solid #999;padding:6px 8px;text-align:center;width:60px">数量</th>';
+    html += '<th style="border:1px solid #999;padding:6px 8px;text-align:right;width:100px">金額</th>';
     html += '</tr></thead><tbody>';
     html += '<tr>';
-    html += '<td style="border:1px solid #ccc;padding:7px 10px">レンタカー利用料</td>';
-    html += '<td style="border:1px solid #ccc;padding:7px 10px;text-align:right">'+(days>0?days+'日':'—')+'</td>';
-    html += '<td style="border:1px solid #ccc;padding:7px 10px;text-align:right">'+(unitFee>0?unitFee.toLocaleString()+' 円':'—')+'</td>';
-    html += '<td style="border:1px solid #ccc;padding:7px 10px;text-align:right;font-weight:600">'+totalFee.toLocaleString()+' 円</td>';
+    html += '<td style="border:1px solid #ccc;padding:6px 8px">基本料金</td>';
+    html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:center"></td>';
+    html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:right">¥'+(unitFee>0?unitFee.toLocaleString():totalFee.toLocaleString())+'</td>';
+    html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:center">'+(days>0?days:'—')+'</td>';
+    html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:right">¥'+totalFee.toLocaleString()+'</td>';
     html += '</tr>';
-    html += '</tbody>';
-    html += '<tfoot>';
-    html += '<tr style="background:#fafafa"><td colspan="3" style="border:1px solid #ccc;padding:7px 10px;text-align:right">税抜金額</td><td style="border:1px solid #ccc;padding:7px 10px;text-align:right">'+feeExTax.toLocaleString()+' 円</td></tr>';
-    html += '<tr style="background:#fafafa"><td colspan="3" style="border:1px solid #ccc;padding:7px 10px;text-align:right">消費税（10%）</td><td style="border:1px solid #ccc;padding:7px 10px;text-align:right">'+tax.toLocaleString()+' 円</td></tr>';
-    html += '<tr style="background:#eff6ff"><td colspan="3" style="border:1px solid #ccc;padding:7px 10px;text-align:right;font-weight:700">ご請求金額（税込）</td><td style="border:1px solid #ccc;padding:7px 10px;text-align:right;font-size:16px;font-weight:700;color:#1a56db">'+totalFee.toLocaleString()+' 円</td></tr>';
-    html += '</tfoot></table></div>';
-  } else if(!isInvoice){
-    // 利用案内：日額のみ表示
-    if(r.dayFee>0){
-      html += '<div class="annai-box" style="margin-top:8px"><div class="annai-box-row"><div class="annai-box-lbl">日額</div><div class="annai-box-val">'+r.dayFee.toLocaleString()+' 円（税込）</div></div></div>';
-    } else if(r.fee>0){
-      html += '<div class="annai-box" style="margin-top:8px"><div class="annai-box-row"><div class="annai-box-lbl">料金</div><div class="annai-box-val">'+r.fee.toLocaleString()+' 円（税込）</div></div></div>';
+    // 合計行
+    html += '</tbody><tfoot>';
+    html += '<tr><td colspan="4" style="border:1px solid #ccc;padding:5px 8px;text-align:right">課税対象合計金額（税込）</td><td style="border:1px solid #ccc;padding:5px 8px;text-align:right">¥'+totalFee.toLocaleString()+'</td></tr>';
+    html += '<tr><td colspan="4" style="border:1px solid #ccc;padding:5px 8px;text-align:right">うち消費税（10%）</td><td style="border:1px solid #ccc;padding:5px 8px;text-align:right">¥'+tax.toLocaleString()+'</td></tr>';
+    html += '<tr><td colspan="4" style="border:1px solid #ccc;padding:5px 8px;text-align:right">非課税対象合計</td><td style="border:1px solid #ccc;padding:5px 8px;text-align:right">¥0</td></tr>';
+    html += '<tr style="font-weight:700"><td colspan="4" style="border:1px solid #999;padding:6px 8px;text-align:right">合計金額（税込）</td><td style="border:1px solid #999;padding:6px 8px;text-align:right;font-size:15px">¥'+totalFee.toLocaleString()+'</td></tr>';
+    html += '</tfoot></table>';
+
+    // 注記
+    html += '<div style="font-size:11px;color:#555;margin-bottom:12px">（※は非課税対象）<br>お支払いは下記銀行口座にお振込み頂きます様お願い致します。<br>尚、振込手数料は御社様にてお願い致します。</div>';
+
+    // 振込先＋備考
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+    // 振込先
+    html += '<div>';
+    html += '<div style="font-size:12px;font-weight:700;margin-bottom:6px">振込先</div>';
+    html += '<div style="border:1px solid #999;padding:10px 12px;font-size:12px;line-height:1.8">';
+    if(SHOP.bank){
+      html += SHOP.bank.replace(/\n/g,'<br>');
     }
-  }
+    html += '</div></div>';
+    // 備考
+    html += '<div>';
+    html += '<div style="font-size:12px;font-weight:700;margin-bottom:6px">備考</div>';
+    html += '<div style="border:1px solid #999;padding:10px 12px;font-size:12px;min-height:80px">'+(r.note||'')+'</div>';
+    html += '</div></div>';
 
-  // 振込先（請求書のみ）
-  if(isInvoice && SHOP.bank){
-    html += '<div style="margin-top:10px;border:1px solid #ccc;padding:8px 12px;font-size:12px">';
-    html += '<div style="font-weight:700;margin-bottom:4px">お振込先</div>';
-    html += SHOP.bank.replace(/\n/g,'<br>');
+  } else {
+    // ===== 利用案内レイアウト =====
+    html += '<div style="text-align:center;font-size:24px;font-weight:400;letter-spacing:4px;margin-bottom:16px">ご利用案内</div>';
+    html += '<div style="text-align:right;font-size:12px;margin-bottom:8px">'+todayStr+'</div>';
+
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:12px">';
+    html += '<div style="font-size:13px">';
+    if(r.insurer){
+      html += '<div style="font-size:15px;font-weight:700;line-height:1.5">'+r.insurer+'</div>';
+      if(r.dept) html += '<div style="font-size:15px;font-weight:700;line-height:1.5">'+r.dept+'</div>';
+      html += '<div style="font-weight:700;margin-top:6px">担当者　'+r.tanto+' 様</div>';
+      if(r.insTel) html += '<div>TEL：'+r.insTel+'</div>';
+      if(r.insFax) html += '<div>FAX：'+r.insFax+'</div>';
+    } else {
+      html += '<div style="font-weight:700">'+r.name+' 様</div>';
+    }
     html += '</div>';
+    html += '<div style="text-align:right;font-size:12px">';
+    html += '<div style="font-size:16px;font-weight:700;font-family:Arial,sans-serif;margin-bottom:4px">'+SHOP.name+'</div>';
+    html += '<div>担当者　'+SHOP.tanto+'</div>';
+    html += '<div>'+SHOP.addr+'</div>';
+    html += '<div>TEL：'+SHOP.tel+'</div>';
+    html += '<div>FAX：'+SHOP.fax+'</div>';
+    html += '</div></div>';
+
+    html += '<table style="width:100%;border-collapse:collapse;margin-bottom:12px;font-size:13px">';
+    if(r.caseNo) html += '<tr><td style="font-weight:700;padding:5px 8px;border-bottom:1px solid #ccc;width:130px">案件番号</td><td style="padding:5px 8px;border-bottom:1px solid #ccc">'+r.caseNo+'</td></tr>';
+    if(r.accDate){var ad=r.accDate.split('-');html+='<tr><td style="font-weight:700;padding:5px 8px;border-bottom:1px solid #ccc">事故・故障日</td><td style="padding:5px 8px;border-bottom:1px solid #ccc">'+ad[0]+'年'+parseInt(ad[1])+'月'+parseInt(ad[2])+'日</td></tr>';}
+    if(r.contractor||r.accCar){
+      var ci2='';
+      if(r.contractor) ci2+='氏　名：'+r.contractor+' 様<br>';
+      if(r.policyNo)   ci2+='証券番号：'+r.policyNo+'<br>';
+      if(r.accCar)     ci2+='車　名：'+r.accCar+'<br>';
+      if(r.accPlate)   ci2+='登録番号：'+r.accPlate+'<br>';
+      if(r.accFrame)   ci2+='車体番号：'+r.accFrame;
+      html+='<tr><td style="font-weight:700;padding:5px 8px;border-bottom:1px solid #ccc">保険契約者</td><td style="padding:5px 8px;border-bottom:1px solid #ccc">'+ci2+'</td></tr>';
+    }
+    html+='<tr><td style="font-weight:700;padding:5px 8px;border-bottom:1px solid #ccc">レンタカー利用者</td><td style="padding:5px 8px;border-bottom:1px solid #ccc">'+r.name+' 様'+(r.phone?'<br>連絡先：'+r.phone:'')+'</td></tr>';
+    html+='</table>';
+
+    html+='<div style="border:1px solid #999;margin-bottom:12px">';
+    if(v) html+='<div style="display:grid;grid-template-columns:130px 1fr;border-bottom:1px solid #ccc"><div style="padding:7px 10px;font-weight:700;background:#f8f8f8;border-right:1px solid #ccc;font-size:13px">ご利用レンタカー</div><div style="padding:7px 12px;font-size:13px">'+v.model+(v.year?'（年式：'+v.year+'）':'')+' 登録番号：'+v.plate+'</div></div>';
+    html+='<div style="display:grid;grid-template-columns:130px 1fr;border-bottom:1px solid #ccc"><div style="padding:7px 10px;font-weight:700;background:#f8f8f8;border-right:1px solid #ccc;font-size:13px">利用開始日時</div><div style="padding:7px 12px;font-size:13px">'+r.outDate.replace('T',' ')+':00</div></div>';
+    if(r.dayFee>0) html+='<div style="display:grid;grid-template-columns:130px 1fr"><div style="padding:7px 10px;font-weight:700;background:#f8f8f8;border-right:1px solid #ccc;font-size:13px">日額</div><div style="padding:7px 12px;font-size:13px">'+r.dayFee.toLocaleString()+' 円（税込）</div></div>';
+    else if(r.fee>0) html+='<div style="display:grid;grid-template-columns:130px 1fr"><div style="padding:7px 10px;font-weight:700;background:#f8f8f8;border-right:1px solid #ccc;font-size:13px">料金</div><div style="padding:7px 12px;font-size:13px">'+r.fee.toLocaleString()+' 円（税込）</div></div>';
+    html+='</div>';
+
+    html+='<div style="margin-top:10px"><div style="font-size:13px;font-weight:700;margin-bottom:4px">備考</div>';
+    html+='<div style="border:1px solid #999;min-height:60px;padding:8px;font-size:13px">'+(r.note||'')+'</div></div>';
   }
 
-  // 備考
-  html += '<div class="annai-biko" style="margin-top:10px"><div class="annai-biko-lbl">備考</div>';
-  html += '<div class="annai-biko-box">'+(r.note||'')+'</div></div>';
   html += '</div>';
   return html;
 }
@@ -2132,6 +2185,7 @@ function loadSettings(){
   document.getElementById('s-addr').value  = SHOP.addr||'';
   document.getElementById('s-tel').value   = SHOP.tel||'';
   document.getElementById('s-fax').value   = SHOP.fax||'';
+  document.getElementById('s-regno').value = SHOP.regno||'';
   // 口座情報を分解
   var bank = SHOP.bank||'';
   var lines = bank.split('\n');
@@ -2149,6 +2203,7 @@ function saveSettings(){
   SHOP.addr  = document.getElementById('s-addr').value.trim();
   SHOP.tel   = document.getElementById('s-tel').value.trim();
   SHOP.fax   = document.getElementById('s-fax').value.trim();
+  SHOP.regno = document.getElementById('s-regno').value.trim();
   var b1 = document.getElementById('s-bank1').value.trim();
   var b2 = document.getElementById('s-bank2').value.trim();
   var b3 = document.getElementById('s-bank3').value.trim();
