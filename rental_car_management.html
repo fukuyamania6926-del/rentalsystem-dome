@@ -845,7 +845,11 @@ function calcFee(r){
   if(r.dayFee>0 && r.outDate){
     var useDate = r.returnDate || r.inDate;
     if(useDate){
-      var days=Math.ceil((new Date(useDate.split('T')[0])-new Date(r.outDate.split('T')[0]))/(1000*60*60*24))+1;
+      var d1=r.outDate.split('T')[0].split('-');
+      var d2=useDate.split('T')[0].split('-');
+      var dt1=new Date(parseInt(d1[0]),parseInt(d1[1])-1,parseInt(d1[2]));
+      var dt2=new Date(parseInt(d2[0]),parseInt(d2[1])-1,parseInt(d2[2]));
+      var days=Math.round((dt2-dt1)/(1000*60*60*24))+1;
       return r.dayFee*Math.max(days,1);
     }
   }
@@ -1061,11 +1065,17 @@ function buildDocHtml(r, docType){
   var retDate = r.returnDate ? r.returnDate.split('T')[0] : (r.inDate ? r.inDate.split('T')[0] : '');
   var days = 0;
   if(r.outDate && retDate){
-    days = Math.ceil((new Date(retDate) - new Date(r.outDate.split('T')[0])) / (1000*60*60*24)) + 1;
+    var dd1=r.outDate.split('T')[0].split('-');
+    var dd2=retDate.split('-');
+    var ddt1=new Date(parseInt(dd1[0]),parseInt(dd1[1])-1,parseInt(dd1[2]));
+    var ddt2=new Date(parseInt(dd2[0]),parseInt(dd2[1])-1,parseInt(dd2[2]));
+    days=Math.round((ddt2-ddt1)/(1000*60*60*24))+1;
     if(days < 1) days = 1;
   }
-  var unitFee  = r.dayFee > 0 ? r.dayFee : (days > 0 && r.fee > 0 ? Math.round(r.fee/days) : r.fee);
+  // 上書き料金がある場合は 料金÷日額 で請求日数を算出
   var totalFee = r.fee > 0 ? r.fee : (r.dayFee > 0 && days > 0 ? r.dayFee * days : 0);
+  var billingDays = (r.fee > 0 && r.dayFee > 0) ? Math.round(r.fee / r.dayFee) : days;
+  var unitFee  = r.dayFee > 0 ? r.dayFee : (billingDays > 0 && totalFee > 0 ? Math.round(totalFee/billingDays) : totalFee);
   // 消費税計算（税込→逆算）
   var taxRate   = 0.10;
   var feeExTax  = Math.round(totalFee / (1+taxRate));
@@ -1140,7 +1150,7 @@ function buildDocHtml(r, docType){
     html += '<td style="border:1px solid #ccc;padding:6px 8px">基本料金</td>';
     html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:center"></td>';
     html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:right">¥'+(unitFee>0?unitFee.toLocaleString():totalFee.toLocaleString())+'</td>';
-    html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:center">'+(days>0?days:'—')+'</td>';
+    html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:center">'+(billingDays>0?billingDays:'—')+'</td>';
     html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:right">¥'+totalFee.toLocaleString()+'</td>';
     html += '</tr>';
     // 合計行
@@ -2236,9 +2246,11 @@ function calcEditFee(){
     return;
   }
 
-  var out  = new Date(outDate.split('T')[0]);
-  var ret  = new Date(useDate.split('T')[0]);
-  var days = Math.ceil((ret - out) / (1000*60*60*24)) + 1;
+  var od=outDate.split('T')[0].split('-');
+  var rd=useDate.split('T')[0].split('-');
+  var out=new Date(parseInt(od[0]),parseInt(od[1])-1,parseInt(od[2]));
+  var ret=new Date(parseInt(rd[0]),parseInt(rd[1])-1,parseInt(rd[2]));
+  var days=Math.round((ret-out)/(1000*60*60*24))+1;
   if(days < 1) days = 1;
 
   var total = dayFee * days;
