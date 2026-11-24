@@ -134,6 +134,7 @@ body.print-invoice-only .annai-wrap-doc{display:none!important}
   <button class="tab" onclick="showTab('report')" id="tab-report">年次報告</button>
   <button class="tab" onclick="showTab('customers')" id="tab-customers">👤 顧客管理</button>
   <button class="tab" onclick="showTab('export')" id="tab-export">📋 国交省転記データ</button>
+  <button class="tab" onclick="showTab('import')" id="tab-import">📥 CSV読込</button>
   <button class="tab" onclick="showTab('settings')" id="tab-settings">⚙️ 設定</button>
 </div>
 
@@ -692,6 +693,10 @@ body.print-invoice-only .annai-wrap-doc{display:none!important}
       </div>
     </div>
     <div class="grid3" style="margin-bottom:1rem">
+      <div class="field"><label>値引き額（円・税込）<br><span style="font-size:11px;color:#888">請求書に値引き行として入ります</span></label><input type="number" id="er-discount" min="0" placeholder="値引きしない場合は空欄"></div>
+      <div class="field"><label>値引きの名目<br><span style="font-size:11px;color:#888">空欄なら「値引き」と印字</span></label><input type="text" id="er-discount-label" placeholder="例：端数値引き"></div>
+    </div>
+    <div class="grid3" style="margin-bottom:1rem">
       <div class="field"><label>入金日</label><input type="date" id="er-payment-date"></div>
       <div class="field"><label>入金額（円）</label><input type="number" id="er-payment-amount"></div>
       <div class="field"><label>入金メモ</label><input type="text" id="er-payment-note" placeholder="振込・現金 等"></div>
@@ -733,6 +738,68 @@ body.print-invoice-only .annai-wrap-doc{display:none!important}
     </div>
     <div class="grid2">
       <div class="field"><label>口座名義</label><input type="text" id="s-bank3" placeholder="ｶｰｽﾀｼﾞｵﾄﾞｰﾑ　ﾀﾅｶﾏﾓﾙ"></div>
+    </div>
+  </div>
+</div>
+<!-- CSV読込 -->
+<div id="section-import" class="section">
+  <div class="section-header">
+    <h2>📥 CSV読込（以前のシステムからの移行）</h2>
+  </div>
+  <div class="card">
+    <div class="card-title">■ ① 読み込むデータとファイルを選ぶ</div>
+    <div class="grid3">
+      <div class="field"><label>読み込むデータの種類</label>
+        <select id="imp-kind" onchange="impKindChanged()">
+          <option value="vehicles">車両</option>
+          <option value="customers">顧客</option>
+          <option value="records">貸渡実績</option>
+        </select>
+      </div>
+      <div class="field"><label>CSVファイル</label><input type="file" id="imp-file" accept=".csv,.txt,.tsv" onchange="impFileChosen()"></div>
+      <div class="field"><label>文字コード</label>
+        <select id="imp-enc" onchange="impReload()">
+          <option value="auto">自動判定（おすすめ）</option>
+          <option value="utf-8">UTF-8</option>
+          <option value="shift_jis">Shift_JIS（Excel保存など）</option>
+        </select>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#666;line-height:1.7">
+      ※ おすすめの順番：<b>車両 → 顧客 → 貸渡実績</b>（貸渡実績は車両番号で車両と結びつけます）<br>
+      ※ 取り込む前にプレビューで確認できます。取り込み後も「元に戻す」ができます。
+    </div>
+    <div id="imp-fileinfo" style="margin-top:8px;font-size:12px;color:#1a56db"></div>
+  </div>
+
+  <div class="card" id="imp-map-card" style="display:none">
+    <div class="card-title">■ ② CSVの列と、このアプリの項目を対応づける</div>
+    <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+      <input type="checkbox" id="imp-header" checked onchange="impBuildMapping()">
+      <label for="imp-header" style="margin:0">1行目は見出し（項目名）である</label>
+    </div>
+    <div id="imp-defaults"></div>
+    <div style="overflow-x:auto"><table id="imp-map-table" style="width:100%"></table></div>
+    <div style="font-size:12px;color:#666;margin-top:6px">※ 自動で合わせています。違っていたら選び直してください。「（読み込まない）」を選ぶとその項目は空になります。</div>
+    <div class="flex" style="margin-top:10px">
+      <button class="btn btn-primary" onclick="impPreview()">👀 プレビューする</button>
+    </div>
+  </div>
+
+  <div class="card" id="imp-prev-card" style="display:none">
+    <div class="card-title">■ ③ プレビュー・取り込み</div>
+    <div id="imp-summary" style="font-size:13px;line-height:1.8"></div>
+    <div id="imp-msgs" style="font-size:12px;color:#b45309;margin:6px 0;line-height:1.7"></div>
+    <div style="overflow-x:auto"><table id="imp-prev-table" style="width:100%"></table></div>
+    <div class="flex" style="margin-top:10px">
+      <button class="btn btn-green" id="imp-do-btn" onclick="impCommit()">✔ この内容で取り込む</button>
+    </div>
+  </div>
+
+  <div class="card" id="imp-done-card" style="display:none">
+    <div id="imp-done-msg" style="font-size:13px;line-height:1.8"></div>
+    <div class="flex" style="margin-top:8px">
+      <button class="btn" style="color:#dc2626;border-color:#dc2626" onclick="impUndo()">↩ 取り込みを元に戻す</button>
     </div>
   </div>
 </div>
@@ -839,6 +906,12 @@ function renderDashboard(){
 }
 
 function calcFee(r){
+  // 請求額＝（上書き料金 or 日額×日数）－値引き
+  var g=calcFeeGross(r);
+  var d=Math.min(parseInt(r.discount)||0,g);
+  return g-d;
+}
+function calcFeeGross(r){
   // 料金上書きがあれば優先
   if(r.fee>0) return r.fee;
   // 日額×日数（実返却日 → 返却予定日の順）
@@ -1076,10 +1149,14 @@ function buildDocHtml(r, docType){
   var totalFee = r.fee > 0 ? r.fee : (r.dayFee > 0 && days > 0 ? r.dayFee * days : 0);
   var billingDays = (r.fee > 0 && r.dayFee > 0) ? Math.round(r.fee / r.dayFee) : days;
   var unitFee  = r.dayFee > 0 ? r.dayFee : (billingDays > 0 && totalFee > 0 ? Math.round(totalFee/billingDays) : totalFee);
+  // 値引き（税込額で値引き → 値引き後の金額から消費税を逆算）
+  var discount  = Math.min(parseInt(r.discount)||0, totalFee);
+  var netFee    = totalFee - discount;
+  var discLabel = (r.discountLabel||'').trim() || '値引き';
   // 消費税計算（税込→逆算）
   var taxRate   = 0.10;
-  var feeExTax  = Math.round(totalFee / (1+taxRate));
-  var tax       = totalFee - feeExTax;
+  var feeExTax  = Math.round(netFee / (1+taxRate));
+  var tax       = netFee - feeExTax;
 
   var isInvoice   = docType === 'invoice';
   var wrapClass   = isInvoice ? 'invoice-wrap annai-wrap' : 'annai-wrap-doc annai-wrap';
@@ -1118,7 +1195,7 @@ function buildDocHtml(r, docType){
     // 御請求金額ボックス
     html += '<div class="inv-amount-box" style="border:2px solid #333;display:flex;align-items:center;padding:10px 18px;margin-bottom:18px;gap:24px">';
     html += '<div style="font-size:14px;font-weight:700;white-space:nowrap">御請求金額</div>';
-    html += '<div style="font-size:28px;font-weight:700;color:#000">¥'+totalFee.toLocaleString()+'<span style="font-size:14px;font-weight:400">（税込）</span></div>';
+    html += '<div style="font-size:28px;font-weight:700;color:#000">¥'+netFee.toLocaleString()+'<span style="font-size:14px;font-weight:400">（税込）</span></div>';
     html += '</div>';
 
     // 事故・契約情報テーブル
@@ -1153,12 +1230,21 @@ function buildDocHtml(r, docType){
     html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:center">'+(billingDays>0?billingDays:'—')+'</td>';
     html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:right">¥'+totalFee.toLocaleString()+'</td>';
     html += '</tr>';
+    if(discount>0){
+      html += '<tr>';
+      html += '<td style="border:1px solid #ccc;padding:6px 8px">'+discLabel+'</td>';
+      html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:center"></td>';
+      html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:right">-¥'+discount.toLocaleString()+'</td>';
+      html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:center">1</td>';
+      html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:right">-¥'+discount.toLocaleString()+'</td>';
+      html += '</tr>';
+    }
     // 合計行
     html += '</tbody><tfoot>';
-    html += '<tr><td colspan="4" style="border:1px solid #ccc;padding:5px 8px;text-align:right">課税対象合計金額（税込）</td><td style="border:1px solid #ccc;padding:5px 8px;text-align:right">¥'+totalFee.toLocaleString()+'</td></tr>';
+    html += '<tr><td colspan="4" style="border:1px solid #ccc;padding:5px 8px;text-align:right">課税対象合計金額（税込）</td><td style="border:1px solid #ccc;padding:5px 8px;text-align:right">¥'+netFee.toLocaleString()+'</td></tr>';
     html += '<tr><td colspan="4" style="border:1px solid #ccc;padding:5px 8px;text-align:right">うち消費税（10%）</td><td style="border:1px solid #ccc;padding:5px 8px;text-align:right">¥'+tax.toLocaleString()+'</td></tr>';
     html += '<tr><td colspan="4" style="border:1px solid #ccc;padding:5px 8px;text-align:right">非課税対象合計</td><td style="border:1px solid #ccc;padding:5px 8px;text-align:right">¥0</td></tr>';
-    html += '<tr style="font-weight:700"><td colspan="4" style="border:1px solid #999;padding:6px 8px;text-align:right">合計金額（税込）</td><td style="border:1px solid #999;padding:6px 8px;text-align:right;font-size:15px">¥'+totalFee.toLocaleString()+'</td></tr>';
+    html += '<tr style="font-weight:700"><td colspan="4" style="border:1px solid #999;padding:6px 8px;text-align:right">合計金額（税込）</td><td style="border:1px solid #999;padding:6px 8px;text-align:right;font-size:15px">¥'+netFee.toLocaleString()+'</td></tr>';
     html += '</tfoot></table>';
 
     // 注記
@@ -1478,9 +1564,11 @@ function renderExport(){
   }
   function calcKm(r){ return (r.kmIn&&r.kmOut) ? r.kmIn-r.kmOut : 0; }
   function calcFeeR(r){
-    if(r.fee>0) return r.fee;
-    if(r.dayFee>0){var d=calcDays(r);return r.dayFee*d;}
-    return 0;
+    var g=0;
+    if(r.fee>0) g=r.fee;
+    else if(r.dayFee>0){var d=calcDays(r);g=r.dayFee*d;}
+    var disc=Math.min(parseInt(r.discount)||0,g);
+    return g-disc;
   }
 
   var ret_records = yr.filter(function(r){return r.status==='returned';});
@@ -2110,6 +2198,8 @@ function editRecord(id){
   document.getElementById('er-note').value    = r.note||'';
   document.getElementById('er-day-fee').value = r.dayFee||'';
   document.getElementById('er-fee').value     = r.fee||'';
+  document.getElementById('er-discount').value       = r.discount||'';
+  document.getElementById('er-discount-label').value = r.discountLabel||'';
 
   // 入金情報
   document.getElementById('er-payment').value        = r.payment||'unpaid';
@@ -2160,6 +2250,8 @@ function saveEditRecord(){
   r.note          = document.getElementById('er-note').value;
   r.dayFee        = parseInt(document.getElementById('er-day-fee').value)||0;
   r.fee           = parseInt(document.getElementById('er-fee').value)||0;
+  r.discount      = parseInt(document.getElementById('er-discount').value)||0;
+  r.discountLabel = document.getElementById('er-discount-label').value.trim();
   r.payment       = document.getElementById('er-payment').value;
   r.paymentDate   = document.getElementById('er-payment-date').value;
   r.paymentAmount = parseInt(document.getElementById('er-payment-amount').value)||0;
@@ -2260,6 +2352,458 @@ function calcEditFee(){
   }
 }
 
+
+// ===== CSV読込（以前のシステムからの移行）=====
+var IMP = { buf:null, rows:[], header:[], map:{}, undo:null, built:null };
+
+var IMP_FIELDS = {
+  vehicles: [
+    {k:'plate', label:'登録番号（ナンバー）', req:true, syn:['登録番号','車両番号','ナンバー','車番','登録No']},
+    {k:'model', label:'車種', req:true, syn:['車種','車名','車両名']},
+    {k:'kind', label:'区分（レンタカー/代車）', syn:['区分','種別','用途']},
+    {k:'ktype', label:'軽/普通', syn:['軽・普通','軽/普通','軽普通','軽自動車','車両区分','規格','軽']},
+    {k:'year', label:'年式', syn:['年式','初度登録','初年度']},
+    {k:'frame', label:'車台番号', syn:['車台','車体番号','フレーム']},
+    {k:'soldDate', label:'売却日', pri:1, syn:['売却日','廃車日','除籍日']},
+    {k:'sold', label:'売却（済/空）', syn:['売却','廃車','除籍']},
+    {k:'vnote', label:'備考', syn:['備考','メモ','摘要']}
+  ],
+  customers: [
+    {k:'kana', label:'フリガナ', pri:1, syn:['フリガナ','ふりがな','カナ','読み']},
+    {k:'name', label:'氏名', req:true, syn:['氏名','顧客名','お客様名','お客様','名前','利用者','名称']},
+    {k:'phone', label:'電話番号', syn:['電話','TEL','携帯','連絡先']},
+    {k:'zip', label:'郵便番号', syn:['郵便','〒']},
+    {k:'addr2', label:'住所2（住所1の後ろにつなぐ）', pri:1, syn:['住所2','住所２','番地','建物']},
+    {k:'addr', label:'住所', syn:['住所']},
+    {k:'license', label:'免許証番号', syn:['免許']},
+    {k:'memo', label:'備考', syn:['備考','メモ']}
+  ],
+  records: [
+    {k:'accPlate', label:'事故車の登録番号', pri:1, syn:['事故車登録','事故登録','事故車番号','事故車ナンバー']},
+    {k:'accCar', label:'事故車種', pri:1, syn:['事故車種','事故車']},
+    {k:'accDate', label:'事故日', pri:1, syn:['事故日']},
+    {k:'policyNo', label:'証券番号', pri:1, syn:['証券番号','証券']},
+    {k:'contractor', label:'保険契約者', pri:1, syn:['保険契約者','契約者']},
+    {k:'paymentDate', label:'入金日', pri:1, syn:['入金日']},
+    {k:'paymentAmount', label:'入金額', pri:1, syn:['入金額']},
+    {k:'inDate', label:'返却予定日', pri:1, syn:['返却予定','予定日']},
+    {k:'kmOut', label:'出発km', pri:1, syn:['出発km','出発距離','貸出km','貸出時走行','出発メーター','開始km']},
+    {k:'kmIn', label:'帰着km', pri:1, syn:['帰着km','返却km','返却時走行','帰着メーター','終了km']},
+    {k:'plate', label:'貸出した車の登録番号', req:true, syn:['車両番号','登録番号','ナンバー','車番','登録No']},
+    {k:'model', label:'貸出した車の車種', syn:['車種','車名','車両名','車両']},
+    {k:'type', label:'区分（事故代車/通常/代車）', syn:['区分','種別','貸出区分','貸渡区分','種類']},
+    {k:'name', label:'利用者名', req:true, syn:['利用者','氏名','お客様','顧客名','借受人','借主','使用者','名前']},
+    {k:'phone', label:'電話番号', syn:['電話','TEL','携帯','連絡先']},
+    {k:'addr2', label:'住所2（住所1の後ろにつなぐ）', pri:1, syn:['住所2','住所２','番地','建物']},
+    {k:'address', label:'住所', syn:['住所']},
+    {k:'license', label:'免許証番号', syn:['免許']},
+    {k:'outDate', label:'貸出日（日時）', req:true, syn:['貸出日時','貸出日','貸渡日','出発日','開始日','利用開始','出庫']},
+    {k:'returnDate', label:'返却日（実際に返却した日）', syn:['返却日時','返却日','帰着日','終了日','入庫','返却']},
+    {k:'dayFee', label:'日額（1日の料金）', syn:['日額','単価','基本料金','1日']},
+    {k:'fee', label:'請求金額（合計）', syn:['請求金額','請求額','料金','金額','合計','売上']},
+    {k:'insurer', label:'保険会社', syn:['保険会社','損保','保険']},
+    {k:'dept', label:'部署・支店', syn:['部署','支店','営業所']},
+    {k:'tanto', label:'保険会社の担当者', syn:['担当']},
+    {k:'caseNo', label:'案件番号', syn:['案件','事故番号','受付番号','整理番号']},
+    {k:'payment', label:'入金状況（済/未）', syn:['入金']},
+    {k:'status', label:'状態（返却済/貸出中）', syn:['状態','ステータス']},
+    {k:'note', label:'備考', syn:['備考','メモ','摘要']}
+  ]
+};
+
+// ---------- 文字の正規化 ----------
+function impHalf(s){
+  return String(s==null?'':s).replace(/[！-～]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0);}).replace(/　/g,' ');
+}
+function impNormHead(s){ return impHalf(s).replace(/[\s　"']/g,'').toLowerCase(); }
+function impNormPlate(s){ return impHalf(s).replace(/[\s\-ー‐－−―]/g,'').toLowerCase(); }
+function impNormPhone(s){ return impHalf(s).replace(/[^0-9]/g,''); }
+function impNum(s){
+  var t=impHalf(s).replace(/[¥￥円,，\s]|km|ＫＭ|キロ/gi,'');
+  if(t==='') return 0;
+  var n=parseInt(t,10);
+  return isNaN(n)?0:n;
+}
+function impPad(n){ return (n<10?'0':'')+n; }
+function impIsoDate(y,m,d,hh,mm){
+  if(!(y>1900&&y<2200&&m>=1&&m<=12&&d>=1&&d<=31)) return '';
+  return y+'-'+impPad(m)+'-'+impPad(d)+'T'+impPad(hh||0)+':'+impPad(mm||0);
+}
+// 日付を YYYY-MM-DDTHH:MM に（時刻が無いときは 00:00）。解釈できないときは空文字
+function impParseDate(s){
+  var t=impHalf(s).trim();
+  if(!t) return '';
+  var m, y, hh=0, mi=0, rest=t;
+  m=t.match(/^(令和|平成|昭和|R|H|S)\s*(\d{1,2}|元)\s*[年.\/\-]\s*(\d{1,2})\s*[月.\/\-]\s*(\d{1,2})\s*日?(.*)$/i);
+  if(m){
+    var base={'令和':2018,'r':2018,'平成':1988,'h':1988,'昭和':1925,'s':1925}[m[1].toLowerCase()];
+    y=base+(m[2]==='元'?1:parseInt(m[2],10));
+    rest=m[5]; m=[null,y,m[3],m[4]];
+  } else {
+    m=t.match(/^(\d{4})\s*[年\/\-.]\s*(\d{1,2})\s*[月\/\-.]\s*(\d{1,2})\s*日?(.*)$/);
+    if(m){ rest=m[4]; m=[null,m[1],m[2],m[3]]; }
+    else {
+      m=t.match(/^(\d{4})(\d{2})(\d{2})(.*)$/);
+      if(m){ rest=m[4]; m=[null,m[1],m[2],m[3]]; } else return '';
+    }
+  }
+  var tm=rest.match(/(\d{1,2})\s*[:時]\s*(\d{1,2})?/);
+  if(tm){ hh=parseInt(tm[1],10); mi=tm[2]?parseInt(tm[2],10):0; }
+  return impIsoDate(parseInt(m[1],10),parseInt(m[2],10),parseInt(m[3],10),hh,mi);
+}
+
+// ---------- CSV 解析 ----------
+function impParseCSV(text){
+  if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);
+  var firstLine=text.split(/\r?\n/)[0]||'';
+  var delim=',';
+  if((firstLine.match(/\t/g)||[]).length>(firstLine.match(/,/g)||[]).length) delim='\t';
+  var rows=[], row=[], cell='', inQ=false, i=0, c;
+  while(i<text.length){
+    c=text.charAt(i);
+    if(inQ){
+      if(c==='"'){
+        if(text.charAt(i+1)==='"'){ cell+='"'; i+=2; continue; }
+        inQ=false; i++; continue;
+      }
+      cell+=c; i++; continue;
+    }
+    if(c==='"'){ inQ=true; i++; continue; }
+    if(c===delim){ row.push(cell); cell=''; i++; continue; }
+    if(c==='\r'){ i++; continue; }
+    if(c==='\n'){ row.push(cell); rows.push(row); row=[]; cell=''; i++; continue; }
+    cell+=c; i++;
+  }
+  if(cell!==''||row.length>0){ row.push(cell); rows.push(row); }
+  return rows.filter(function(r){ return r.some(function(x){return String(x).trim()!=='';}); });
+}
+
+function impDecode(buf, enc){
+  if(enc==='auto'){
+    try { return {text:new TextDecoder('utf-8',{fatal:true}).decode(buf), enc:'UTF-8'}; }
+    catch(e){ return {text:new TextDecoder('shift_jis').decode(buf), enc:'Shift_JIS'}; }
+  }
+  return {text:new TextDecoder(enc).decode(buf), enc:(enc==='utf-8'?'UTF-8':'Shift_JIS')};
+}
+
+// ---------- 画面操作 ----------
+function impKindChanged(){
+  if(IMP.buf) impReload();
+  impHideAfter();
+}
+function impHideAfter(){
+  document.getElementById('imp-prev-card').style.display='none';
+  document.getElementById('imp-done-card').style.display = IMP.undo ? '' : 'none';
+}
+function impFileChosen(){
+  var f=document.getElementById('imp-file').files[0];
+  if(!f) return;
+  var fr=new FileReader();
+  fr.onload=function(){ IMP.buf=fr.result; IMP.fname=f.name; impReload(); };
+  fr.onerror=function(){ alert('ファイルを読み込めませんでした。'); };
+  fr.readAsArrayBuffer(f);
+}
+function impReload(){
+  if(!IMP.buf) return;
+  var enc=document.getElementById('imp-enc').value;
+  var d;
+  try { d=impDecode(IMP.buf, enc); } catch(e){ alert('文字コードの変換に失敗しました。文字コードを選び直してください。'); return; }
+  IMP.rows=impParseCSV(d.text);
+  document.getElementById('imp-fileinfo').textContent='📄 '+(IMP.fname||'')+'　／　文字コード：'+d.enc+'　／　'+IMP.rows.length+'行（見出しを含む）';
+  if(IMP.rows.length<1){ alert('データが見つかりませんでした。'); return; }
+  impBuildMapping();
+}
+function impGuess(kind, header){
+  var defs=IMP_FIELDS[kind], used={}, map={};
+  var heads=header.map(impNormHead);
+  var order=defs.slice().sort(function(a,b){ return (a.pri||5)-(b.pri||5); });
+  // 1周目：完全一致
+  order.forEach(function(f){
+    for(var j=0;j<heads.length;j++){
+      if(used[j]) continue;
+      if(f.syn.some(function(s){return impNormHead(s)===heads[j];})){ map[f.k]=j; used[j]=1; break; }
+    }
+  });
+  // 2周目：部分一致
+  order.forEach(function(f){
+    if(map[f.k]!==undefined) return;
+    for(var j=0;j<heads.length;j++){
+      if(used[j]||heads[j]==='') continue;
+      if(f.syn.some(function(s){return heads[j].indexOf(impNormHead(s))>=0;})){ map[f.k]=j; used[j]=1; break; }
+    }
+  });
+  return map;
+}
+function impBuildMapping(){
+  var kind=document.getElementById('imp-kind').value;
+  var hasHead=document.getElementById('imp-header').checked;
+  var first=IMP.rows[0]||[];
+  var ncol=0; IMP.rows.slice(0,50).forEach(function(r){ if(r.length>ncol) ncol=r.length; });
+  IMP.header=[];
+  for(var j=0;j<ncol;j++) IMP.header.push(hasHead ? String(first[j]||'').trim() : '');
+  IMP.data=hasHead ? IMP.rows.slice(1) : IMP.rows.slice();
+  IMP.map = hasHead ? impGuess(kind, IMP.header) : {};
+  var sample=IMP.data[0]||[];
+  var defs=IMP_FIELDS[kind];
+  var opts='<option value="">（読み込まない）</option>';
+  for(var j=0;j<ncol;j++){
+    var nm=hasHead ? (IMP.header[j]||'(列'+(j+1)+')') : '列'+(j+1);
+    opts+='<option value="'+j+'">'+(j+1)+'列目：'+impEsc(nm)+'</option>';
+  }
+  var html='<tr style="background:#f5f5f5"><th style="text-align:left;padding:6px">このアプリの項目</th><th style="text-align:left;padding:6px">CSVの列</th><th style="text-align:left;padding:6px">1件目のデータ例</th></tr>';
+  defs.forEach(function(f){
+    html+='<tr><td style="padding:5px 6px;border-top:1px solid #eee;white-space:nowrap">'+f.label+(f.req?' <span style="color:#dc2626">*</span>':'')+'</td>'+
+      '<td style="padding:5px 6px;border-top:1px solid #eee"><select id="impmap-'+f.k+'" onchange="impMapChanged(\''+f.k+'\')" style="padding:5px;border:1px solid #d0d0d0;border-radius:6px;font-size:13px;min-width:200px">'+opts+'</select></td>'+
+      '<td id="impsmp-'+f.k+'" style="padding:5px 6px;border-top:1px solid #eee;color:#666;font-size:12px"></td></tr>';
+  });
+  document.getElementById('imp-map-table').innerHTML=html;
+  defs.forEach(function(f){
+    var sel=document.getElementById('impmap-'+f.k);
+    sel.value = IMP.map[f.k]!==undefined ? String(IMP.map[f.k]) : '';
+    impMapChanged(f.k);
+  });
+  // 取り込み設定
+  var d='';
+  if(kind==='vehicles'){
+    d='<div class="grid3" style="margin:8px 0"><div class="field"><label>区分の列が無い／空のときの区分</label><select id="imp-def-kind"><option value="rental">レンタカー</option><option value="loaner">代車</option></select></div>'+
+      '<div class="field"><label>軽/普通の列が無い／空のときの区分</label><select id="imp-def-ktype"><option value="normal">普通車</option><option value="kei">軽自動車</option></select></div></div>';
+  } else if(kind==='records'){
+    d='<div class="grid3" style="margin:8px 0"><div class="field"><label>区分の列が無い／空のときの区分</label><select id="imp-def-type"><option value="accident">事故代車（保険会社請求）</option><option value="rental">通常貸出</option><option value="loaner">代車</option></select></div>'+
+      '<div class="field"><label>未登録の車両番号が出てきたら</label><select id="imp-auto-veh"><option value="1">車両を自動で登録する</option><option value="0">その行は取り込まない</option></select></div>'+
+      '<div class="field"><label>利用者を顧客管理にも登録</label><select id="imp-auto-cust"><option value="1">登録する</option><option value="0">登録しない</option></select></div></div>';
+  }
+  document.getElementById('imp-defaults').innerHTML=d;
+  document.getElementById('imp-map-card').style.display='';
+  impHideAfter();
+}
+function impMapChanged(k){
+  var v=document.getElementById('impmap-'+k).value;
+  var el=document.getElementById('impsmp-'+k);
+  if(v===''){ delete IMP.map[k]; el.textContent=''; return; }
+  IMP.map[k]=parseInt(v,10);
+  var s=(IMP.data[0]||[])[IMP.map[k]];
+  el.textContent = s==null ? '' : String(s);
+}
+function impEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function impCell(row,k){
+  var j=IMP.map[k];
+  if(j===undefined) return '';
+  var v=row[j];
+  return v==null ? '' : String(v).trim();
+}
+function impTruthy(s){ var t=impHalf(s).trim(); return t!==''&&!/^(0|なし|無|×|未|false|-|ー)$/i.test(t); }
+
+// ---------- 変換（現在のデータのコピー上で実行。プレビューと取り込みで同じ結果になる） ----------
+function impWorkingCopy(){
+  return JSON.parse(JSON.stringify({vehicles:vehicles, records:records, customers:customers, nextId:nextId, custNextId:custNextId}));
+}
+function impNewVehId(W, group){
+  var p = group==='loaner' ? 'L' : 'R';
+  var all=W.vehicles.rental.concat(W.vehicles.loaner), n=1, id;
+  do { id=p+'i'+n; n++; } while(all.some(function(v){return v.id===id;}));
+  return id;
+}
+function impBuild(){
+  var kind=document.getElementById('imp-kind').value;
+  var W=impWorkingCopy();
+  var res={kind:kind, W:W, added:0, dup:0, bad:0, newVeh:0, newCust:0, msgs:[], samples:[]};
+  var dataRows=IMP.data;
+  var allVeh=function(){ return W.vehicles.rental.concat(W.vehicles.loaner); };
+  var custKeys={};
+  W.customers.forEach(function(c){ custKeys[c.name+'|'+impNormPhone(c.phone)]=1; });
+
+  function addCustomer(c){
+    var key=c.name+'|'+impNormPhone(c.phone);
+    if(custKeys[key]) return false;
+    custKeys[key]=1;
+    W.customers.push({id:W.custNextId++, name:c.name, kana:c.kana||'', phone:c.phone||'', zip:c.zip||'', addr:c.addr||'', license:c.license||'', memo:c.memo||''});
+    return true;
+  }
+  function note(i,t){ if(res.msgs.length<30) res.msgs.push((i+1+(document.getElementById('imp-header').checked?1:0))+'行目：'+t); }
+
+  if(kind==='customers'){
+    dataRows.forEach(function(row,i){
+      var name=impCell(row,'name');
+      if(!name){ res.bad++; note(i,'氏名が空のため取り込みません'); return; }
+      var addr=impCell(row,'addr')+impCell(row,'addr2');
+      var c={name:name, kana:impCell(row,'kana'), phone:impCell(row,'phone'), zip:impCell(row,'zip'), addr:addr, license:impCell(row,'license'), memo:impCell(row,'memo')};
+      if(addCustomer(c)){ res.added++; if(res.samples.length<8) res.samples.push([c.name,c.kana,c.phone,c.zip,c.addr]); }
+      else res.dup++;
+    });
+    res.cols=['氏名','フリガナ','電話','郵便番号','住所'];
+  }
+
+  if(kind==='vehicles'){
+    var defKind=document.getElementById('imp-def-kind').value;
+    var defK=document.getElementById('imp-def-ktype').value;
+    var plates={};
+    allVeh().forEach(function(v){ plates[impNormPlate(v.plate)]=1; });
+    dataRows.forEach(function(row,i){
+      var plate=impCell(row,'plate'), model=impCell(row,'model');
+      if(!plate){ res.bad++; note(i,'登録番号が空のため取り込みません'); return; }
+      if(!model){ model='（車種不明）'; note(i,'車種が空です（「（車種不明）」で登録します。後で車両管理で修正できます）'); }
+      var np=impNormPlate(plate);
+      if(plates[np]){ res.dup++; return; }
+      plates[np]=1;
+      var kv=impCell(row,'kind'), group=defKind;
+      if(kv){ group = /代車/.test(kv) ? 'loaner' : (/レンタ|貸|通常|事故/.test(kv)?'rental':defKind); }
+      var kt=impCell(row,'ktype'), ktype=defK;
+      if(kt){ ktype = /軽/.test(kt) ? 'kei' : (/普通|登録|小型|3|5/.test(kt)?'normal':defK); }
+      var sv=impCell(row,'sold'), sd=impParseDate(impCell(row,'soldDate'));
+      var v={id:impNewVehId(W,group), plate:plate, model:model, ktype:ktype, year:impCell(row,'year'), frame:impCell(row,'frame'), vnote:impCell(row,'vnote')};
+      if(sd || (impTruthy(sv))){ v.sold=true; v.soldDate=sd?sd.slice(0,10):''; }
+      W.vehicles[group].push(v);
+      res.added++;
+      if(res.samples.length<8) res.samples.push([plate,model,group==='loaner'?'代車':'レンタカー',ktype==='kei'?'軽':'普通',v.sold?'売却済':'']);
+    });
+    res.cols=['登録番号','車種','区分','軽/普通','売却'];
+  }
+
+  if(kind==='records'){
+    var defType=document.getElementById('imp-def-type').value;
+    var autoVeh=document.getElementById('imp-auto-veh').value==='1';
+    var autoCust=document.getElementById('imp-auto-cust').value==='1';
+    var recKeys={};
+    W.records.forEach(function(r){ recKeys[r.vehicleId+'|'+String(r.outDate||'').slice(0,10)+'|'+r.name]=1; });
+    var dateNoTime=0;
+    dataRows.forEach(function(row,i){
+      var name=impCell(row,'name'), plate=impCell(row,'plate'), model=impCell(row,'model');
+      var outRaw=impCell(row,'outDate'), outDate=impParseDate(outRaw);
+      if(!name){ res.bad++; note(i,'利用者名が空のため取り込みません'); return; }
+      if(!outDate){ res.bad++; note(i,'貸出日「'+outRaw+'」を日付として読み取れないため取り込みません'); return; }
+      if(!/[T ]\d{1,2}[:時]/.test(impHalf(outRaw))) dateNoTime++;
+      // 車両の特定
+      var veh=null, group=null;
+      if(plate){
+        var np=impNormPlate(plate);
+        veh=allVeh().find(function(v){return impNormPlate(v.plate)===np;})||null;
+      } else if(model){
+        var cands=allVeh().filter(function(v){return v.model===model;});
+        if(cands.length===1) veh=cands[0];
+      }
+      // 区分
+      var tv=impCell(row,'type'), type=null;
+      if(tv){ type = /事故/.test(tv) ? 'accident' : (/代車/.test(tv) ? 'loaner' : (/通常|レンタ|貸出|貸渡/.test(tv) ? 'rental' : null)); }
+      if(!veh){
+        if(!plate){ res.bad++; note(i,'車両番号が無く、車両を特定できないため取り込みません'); return; }
+        if(!autoVeh){ res.bad++; note(i,'車両「'+plate+'」が未登録のため取り込みません'); return; }
+        group = (type==='loaner') ? 'loaner' : (type ? 'rental' : (defType==='loaner'?'loaner':'rental'));
+        veh={id:impNewVehId(W,group), plate:plate, model:model||'（車種不明）', ktype:'normal', year:'', frame:'', vnote:'（CSV取込で自動登録）'};
+        W.vehicles[group].push(veh);
+        res.newVeh++;
+      }
+      var inRental = W.vehicles.rental.indexOf(veh)>=0;
+      if(!type) type = inRental ? defType==='loaner' ? 'accident' : defType : 'loaner';
+      if(!inRental) type='loaner';
+      else if(type==='loaner') type = (defType==='loaner'?'accident':defType);
+      var retRaw=impCell(row,'returnDate'), ret=impParseDate(retRaw);
+      if(retRaw && !ret) note(i,'返却日「'+retRaw+'」を日付として読み取れませんでした（貸出中として扱います）');
+      var inD=impParseDate(impCell(row,'inDate'));
+      var stv=impCell(row,'status'), status = ret ? 'returned' : 'out';
+      if(stv){
+        if(/返却|済|完了|終了|戻/.test(stv) && !/未/.test(stv)) status='returned';
+        else if(/貸出中|貸渡中|使用中|未返却|未/.test(stv)) status='out';
+      }
+      if(status==='returned' && !ret){ ret = inD || outDate; note(i,'返却済ですが返却日が無いため、'+(inD?'返却予定日':'貸出日')+'を返却日にしました'); }
+      if(status==='out') ret=null;
+      var key=veh.id+'|'+outDate.slice(0,10)+'|'+name;
+      if(recKeys[key]){ res.dup++; return; }
+      recKeys[key]=1;
+      var addr=impCell(row,'address')+impCell(row,'addr2');
+      var pay=impCell(row,'payment'), payment='unpaid';
+      if(pay && /済|入金|○|〇|有|あり|paid/i.test(pay) && !/未/.test(pay)) payment='paid';
+      var payAmt=impNum(impCell(row,'paymentAmount')), payDate=impParseDate(impCell(row,'paymentDate'));
+      if(payDate||payAmt>0) payment='paid';
+      var rec={
+        id:W.nextId++, type:type, vehicleId:veh.id,
+        insurer:impCell(row,'insurer'), dept:impCell(row,'dept'), tanto:impCell(row,'tanto'), insTel:'', insFax:'',
+        caseNo:impCell(row,'caseNo'), accDate:(impParseDate(impCell(row,'accDate'))||'').slice(0,10),
+        contractor:impCell(row,'contractor'), policyNo:impCell(row,'policyNo'),
+        accCar:impCell(row,'accCar'), accPlate:impCell(row,'accPlate'), accFrame:'',
+        name:name, phone:impCell(row,'phone'), address:addr, license:impCell(row,'license'),
+        outDate:outDate, inDate:(inD||ret||''), returnDate:ret||null,
+        kmOut:impNum(impCell(row,'kmOut')), kmIn: status==='returned' ? (impNum(impCell(row,'kmIn'))||null) : null,
+        dayFee:impNum(impCell(row,'dayFee')), fee:impNum(impCell(row,'fee')),
+        note:impCell(row,'note'), status:status, payment:payment
+      };
+      if(payDate) rec.paymentDate=payDate.slice(0,10);
+      if(payAmt>0) rec.paymentAmount=payAmt;
+      // 日額があるのに請求金額が「日額×日数」と同じ場合は、金額の上書きにならないよう0に戻す
+      if(rec.fee>0 && rec.dayFee>0 && ret){
+        var d1=new Date(outDate.slice(0,10)+'T00:00:00'), d2=new Date(ret.slice(0,10)+'T00:00:00');
+        var days=Math.round((d2-d1)/86400000)+1;
+        if(days>0 && rec.dayFee*days===rec.fee) rec.fee=0;
+      }
+      W.records.push(rec);
+      res.added++;
+      if(autoCust && addCustomer({name:name, phone:rec.phone, addr:addr, license:rec.license})) res.newCust++;
+      if(res.samples.length<8) res.samples.push([outDate.slice(0,10), ret?ret.slice(0,10):'（貸出中）', name, veh.plate+' '+veh.model, ({accident:'事故代車',rental:'通常',loaner:'代車'})[type], (rec.fee||rec.dayFee)?('¥'+(rec.fee||rec.dayFee).toLocaleString()+(rec.fee?'':'/日')):'']);
+    });
+    if(dateNoTime>0) res.msgs.unshift('貸出日に時刻が無い行が'+dateNoTime+'件あります（時刻は 00:00 として登録します。料金計算は日付だけで行うので影響しません）');
+    res.cols=['貸出日','返却日','利用者','車両','区分','金額'];
+  }
+  return res;
+}
+
+function impPreview(){
+  var kind=document.getElementById('imp-kind').value;
+  var defs=IMP_FIELDS[kind];
+  var missing=defs.filter(function(f){return f.req && IMP.map[f.k]===undefined;});
+  if(missing.length){ alert('次の項目の対応する列を選んでください：\n'+missing.map(function(f){return '・'+f.label;}).join('\n')); return; }
+  if(!IMP.data||!IMP.data.length){ alert('データの行がありません。1行目が見出しかどうかの設定を確認してください。'); return; }
+  var res;
+  try { res=impBuild(); } catch(e){ alert('変換中にエラーが出ました：'+e.message); return; }
+  IMP.built=res;
+  var kn={vehicles:'車両',customers:'顧客',records:'貸渡実績'}[kind];
+  var s='<b>'+kn+'：</b>新しく取り込む <b style="color:#16a34a">'+res.added+'件</b>　／　すでにあるので飛ばす <b>'+res.dup+'件</b>　／　取り込めない <b style="color:#dc2626">'+res.bad+'件</b>';
+  if(res.newVeh) s+='<br>🚗 車両を自動登録：'+res.newVeh+'台';
+  if(res.newCust) s+='<br>👤 顧客を新規登録：'+res.newCust+'人';
+  document.getElementById('imp-summary').innerHTML=s;
+  document.getElementById('imp-msgs').innerHTML=res.msgs.map(impEsc).join('<br>');
+  var h='<tr style="background:#f5f5f5">'+res.cols.map(function(c){return '<th style="text-align:left;padding:6px">'+c+'</th>';}).join('')+'</tr>';
+  res.samples.forEach(function(r){ h+='<tr>'+r.map(function(c){return '<td style="padding:5px 6px;border-top:1px solid #eee">'+impEsc(c)+'</td>';}).join('')+'</tr>'; });
+  if(res.added>res.samples.length) h+='<tr><td colspan="'+res.cols.length+'" style="padding:5px 6px;color:#888;font-size:12px">…ほか '+(res.added-res.samples.length)+'件</td></tr>';
+  document.getElementById('imp-prev-table').innerHTML = res.samples.length ? h : '';
+  document.getElementById('imp-do-btn').disabled = res.added===0;
+  document.getElementById('imp-prev-card').style.display='';
+  document.getElementById('imp-prev-card').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function impCommit(){
+  var res=IMP.built;
+  if(!res || res.added===0) return;
+  if(!confirm(res.added+'件を取り込みます。よろしいですか？\n（取り込み後に「元に戻す」もできます）')) return;
+  IMP.undo=impWorkingCopy();
+  var W=res.W;
+  vehicles=W.vehicles; records=W.records; customers=W.customers; nextId=W.nextId; custNextId=W.custNextId;
+  saveAllData();
+  try { renderDashboard(); } catch(e){}
+  try { renderCustomers(); rebuildCustomerSelects(); } catch(e){}
+  try { renderVehicles(); } catch(e){}
+  try { renderRecords(); } catch(e){}
+  var kn={vehicles:'車両',customers:'顧客',records:'貸渡実績'}[res.kind];
+  var m='✅ '+kn+'を <b>'+res.added+'件</b> 取り込みました。';
+  if(res.newVeh) m+='（車両 '+res.newVeh+'台を自動登録）';
+  m+='<br>👉 最後に、画面上部の <b>☁️ クラウド保存</b> を押すと、他のパソコンからも見られます。';
+  document.getElementById('imp-done-msg').innerHTML=m;
+  document.getElementById('imp-done-card').style.display='';
+  document.getElementById('imp-prev-card').style.display='none';
+  IMP.built=null;
+}
+function impUndo(){
+  if(!IMP.undo){ alert('元に戻せるデータがありません。'); return; }
+  if(!confirm('直前の取り込みを取り消して、取り込み前の状態に戻します。よろしいですか？')) return;
+  var U=IMP.undo;
+  vehicles=U.vehicles; records=U.records; customers=U.customers; nextId=U.nextId; custNextId=U.custNextId;
+  IMP.undo=null;
+  saveAllData();
+  try { renderDashboard(); } catch(e){}
+  try { renderCustomers(); rebuildCustomerSelects(); } catch(e){}
+  try { renderVehicles(); } catch(e){}
+  try { renderRecords(); } catch(e){}
+  document.getElementById('imp-done-card').style.display='none';
+  alert('取り込み前の状態に戻しました。');
+}
 
 function exportCSV(){
   var hdr=['ID','貸出日時','返却日時','区分','車種','車両番号','利用者','電話','住所','保険会社','担当者','案件番号','事故日','契約者','事故車種','事故登録番号','出発km','帰着km','走行距離km','日額','料金','備考','状態'];
