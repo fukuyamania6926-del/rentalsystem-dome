@@ -693,10 +693,6 @@ body.print-invoice-only .annai-wrap-doc{display:none!important}
       </div>
     </div>
     <div class="grid3" style="margin-bottom:1rem">
-      <div class="field"><label>値引き額（円・税込）<br><span style="font-size:11px;color:#888">請求書に値引き行として入ります</span></label><input type="number" id="er-discount" min="0" placeholder="値引きしない場合は空欄"></div>
-      <div class="field"><label>値引きの名目<br><span style="font-size:11px;color:#888">空欄なら「値引き」と印字</span></label><input type="text" id="er-discount-label" placeholder="例：端数値引き"></div>
-    </div>
-    <div class="grid3" style="margin-bottom:1rem">
       <div class="field"><label>入金日</label><input type="date" id="er-payment-date"></div>
       <div class="field"><label>入金額（円）</label><input type="number" id="er-payment-amount"></div>
       <div class="field"><label>入金メモ</label><input type="text" id="er-payment-note" placeholder="振込・現金 等"></div>
@@ -906,12 +902,6 @@ function renderDashboard(){
 }
 
 function calcFee(r){
-  // 請求額＝（上書き料金 or 日額×日数）－値引き
-  var g=calcFeeGross(r);
-  var d=Math.min(parseInt(r.discount)||0,g);
-  return g-d;
-}
-function calcFeeGross(r){
   // 料金上書きがあれば優先
   if(r.fee>0) return r.fee;
   // 日額×日数（実返却日 → 返却予定日の順）
@@ -1149,14 +1139,10 @@ function buildDocHtml(r, docType){
   var totalFee = r.fee > 0 ? r.fee : (r.dayFee > 0 && days > 0 ? r.dayFee * days : 0);
   var billingDays = (r.fee > 0 && r.dayFee > 0) ? Math.round(r.fee / r.dayFee) : days;
   var unitFee  = r.dayFee > 0 ? r.dayFee : (billingDays > 0 && totalFee > 0 ? Math.round(totalFee/billingDays) : totalFee);
-  // 値引き（税込額で値引き → 値引き後の金額から消費税を逆算）
-  var discount  = Math.min(parseInt(r.discount)||0, totalFee);
-  var netFee    = totalFee - discount;
-  var discLabel = (r.discountLabel||'').trim() || '値引き';
   // 消費税計算（税込→逆算）
   var taxRate   = 0.10;
-  var feeExTax  = Math.round(netFee / (1+taxRate));
-  var tax       = netFee - feeExTax;
+  var feeExTax  = Math.round(totalFee / (1+taxRate));
+  var tax       = totalFee - feeExTax;
 
   var isInvoice   = docType === 'invoice';
   var wrapClass   = isInvoice ? 'invoice-wrap annai-wrap' : 'annai-wrap-doc annai-wrap';
@@ -1195,7 +1181,7 @@ function buildDocHtml(r, docType){
     // 御請求金額ボックス
     html += '<div class="inv-amount-box" style="border:2px solid #333;display:flex;align-items:center;padding:10px 18px;margin-bottom:18px;gap:24px">';
     html += '<div style="font-size:14px;font-weight:700;white-space:nowrap">御請求金額</div>';
-    html += '<div style="font-size:28px;font-weight:700;color:#000">¥'+netFee.toLocaleString()+'<span style="font-size:14px;font-weight:400">（税込）</span></div>';
+    html += '<div style="font-size:28px;font-weight:700;color:#000">¥'+totalFee.toLocaleString()+'<span style="font-size:14px;font-weight:400">（税込）</span></div>';
     html += '</div>';
 
     // 事故・契約情報テーブル
@@ -1230,21 +1216,12 @@ function buildDocHtml(r, docType){
     html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:center">'+(billingDays>0?billingDays:'—')+'</td>';
     html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:right">¥'+totalFee.toLocaleString()+'</td>';
     html += '</tr>';
-    if(discount>0){
-      html += '<tr>';
-      html += '<td style="border:1px solid #ccc;padding:6px 8px">'+discLabel+'</td>';
-      html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:center"></td>';
-      html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:right">-¥'+discount.toLocaleString()+'</td>';
-      html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:center">1</td>';
-      html += '<td style="border:1px solid #ccc;padding:6px 8px;text-align:right">-¥'+discount.toLocaleString()+'</td>';
-      html += '</tr>';
-    }
     // 合計行
     html += '</tbody><tfoot>';
-    html += '<tr><td colspan="4" style="border:1px solid #ccc;padding:5px 8px;text-align:right">課税対象合計金額（税込）</td><td style="border:1px solid #ccc;padding:5px 8px;text-align:right">¥'+netFee.toLocaleString()+'</td></tr>';
+    html += '<tr><td colspan="4" style="border:1px solid #ccc;padding:5px 8px;text-align:right">課税対象合計金額（税込）</td><td style="border:1px solid #ccc;padding:5px 8px;text-align:right">¥'+totalFee.toLocaleString()+'</td></tr>';
     html += '<tr><td colspan="4" style="border:1px solid #ccc;padding:5px 8px;text-align:right">うち消費税（10%）</td><td style="border:1px solid #ccc;padding:5px 8px;text-align:right">¥'+tax.toLocaleString()+'</td></tr>';
     html += '<tr><td colspan="4" style="border:1px solid #ccc;padding:5px 8px;text-align:right">非課税対象合計</td><td style="border:1px solid #ccc;padding:5px 8px;text-align:right">¥0</td></tr>';
-    html += '<tr style="font-weight:700"><td colspan="4" style="border:1px solid #999;padding:6px 8px;text-align:right">合計金額（税込）</td><td style="border:1px solid #999;padding:6px 8px;text-align:right;font-size:15px">¥'+netFee.toLocaleString()+'</td></tr>';
+    html += '<tr style="font-weight:700"><td colspan="4" style="border:1px solid #999;padding:6px 8px;text-align:right">合計金額（税込）</td><td style="border:1px solid #999;padding:6px 8px;text-align:right;font-size:15px">¥'+totalFee.toLocaleString()+'</td></tr>';
     html += '</tfoot></table>';
 
     // 注記
@@ -1564,11 +1541,9 @@ function renderExport(){
   }
   function calcKm(r){ return (r.kmIn&&r.kmOut) ? r.kmIn-r.kmOut : 0; }
   function calcFeeR(r){
-    var g=0;
-    if(r.fee>0) g=r.fee;
-    else if(r.dayFee>0){var d=calcDays(r);g=r.dayFee*d;}
-    var disc=Math.min(parseInt(r.discount)||0,g);
-    return g-disc;
+    if(r.fee>0) return r.fee;
+    if(r.dayFee>0){var d=calcDays(r);return r.dayFee*d;}
+    return 0;
   }
 
   var ret_records = yr.filter(function(r){return r.status==='returned';});
@@ -2198,8 +2173,6 @@ function editRecord(id){
   document.getElementById('er-note').value    = r.note||'';
   document.getElementById('er-day-fee').value = r.dayFee||'';
   document.getElementById('er-fee').value     = r.fee||'';
-  document.getElementById('er-discount').value       = r.discount||'';
-  document.getElementById('er-discount-label').value = r.discountLabel||'';
 
   // 入金情報
   document.getElementById('er-payment').value        = r.payment||'unpaid';
@@ -2250,8 +2223,6 @@ function saveEditRecord(){
   r.note          = document.getElementById('er-note').value;
   r.dayFee        = parseInt(document.getElementById('er-day-fee').value)||0;
   r.fee           = parseInt(document.getElementById('er-fee').value)||0;
-  r.discount      = parseInt(document.getElementById('er-discount').value)||0;
-  r.discountLabel = document.getElementById('er-discount-label').value.trim();
   r.payment       = document.getElementById('er-payment').value;
   r.paymentDate   = document.getElementById('er-payment-date').value;
   r.paymentAmount = parseInt(document.getElementById('er-payment-amount').value)||0;
